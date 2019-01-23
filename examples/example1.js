@@ -4,12 +4,13 @@ const fs = require("fs");
 const rows = [["Name", "Location"], ["Bob", "Sweden"], ["Alice", "France"]];
 
 const write = async rows => {
-  const xlsx = new XlsxWriter(2, 3);
+  const xlsx = new XlsxWriter();
   rows.map(row => xlsx.addRow(row));
+  xlsx.end();
   return xlsx.getFile();
 };
 
-write(rows).then(blob => {
+write(rows).then(buffer => {
   console.log("done!");
-  fs.writeFileSync("result.xlsx", blob);
+  fs.writeFileSync("result.xlsx", buffer);
 });

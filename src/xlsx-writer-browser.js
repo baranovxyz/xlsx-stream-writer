@@ -3,7 +3,7 @@ const xmlParts = require("./xml-parts");
 const xmlBlobs = require("./xml-blobs");
 
 class XlsxWriter {
-  constructor(numRows, numColumns) {
+  constructor() {
     this.sharedStrings = [];
     this.sharedStringsMap = {};
 
@@ -13,14 +13,14 @@ class XlsxWriter {
     this.sharedStringsXml = "";
     this.sheetStringXml = "";
     this.xlsx = {
-      "[Content_Types].xml": xmlBlobs.contentTypes,
-      "_rels/.rels": xmlBlobs.rels,
-      "xl/workbook.xml": xmlBlobs.workbook,
-      "xl/styles.xml": xmlBlobs.styles,
-      "xl/_rels/workbook.xml.rels": xmlBlobs.workbookRels,
+      "[Content_Types].xml": cleanUpXml(xmlBlobs.contentTypes),
+      "_rels/.rels": cleanUpXml(xmlBlobs.rels),
+      "xl/workbook.xml": cleanUpXml(xmlBlobs.workbook),
+      "xl/styles.xml": cleanUpXml(xmlBlobs.styles),
+      "xl/_rels/workbook.xml.rels": cleanUpXml(xmlBlobs.workbookRels),
     };
 
-    this._startSheet(numRows, numColumns);
+    this._startSheet();
   }
 
   addRow(row) {
@@ -35,9 +35,9 @@ class XlsxWriter {
     this.sheetEnded = true;
   }
 
-  _startSheet(numRows, numColumns) {
-    const sheetRange = getRange(numRows, numColumns);
-    this.sheetStringXml = xmlParts.getSheetHeader(sheetRange);
+  _startSheet() {
+    // const sheetRange = getRange(numRows, numColumns);
+    this.sheetStringXml = xmlParts.sheetHeader;
   }
 
   _endSheet() {
@@ -76,6 +76,7 @@ class XlsxWriter {
     sharedStringIndex = this.sharedStrings.length;
     this.sharedStringsMap[value] = sharedStringIndex;
     this.sharedStrings.push(value);
+    return sharedStringIndex;
   }
 
   _processSharedStrings() {
@@ -104,9 +105,9 @@ class XlsxWriter {
     // add all static files
     Object.keys(this.xlsx).forEach(key => zip.file(key, this.xlsx[key]));
     // add "xl/sharedStrings.xml"
-    zip.file("xl/sharedStrings.xml", this.sharedStringsXml);
+    zip.file("xl/sharedStrings.xml", cleanUpXml(this.sharedStringsXml));
     // add "xl/worksheets/sheet1.xml"
-    zip.file("xl/worksheets/sheet1.xml", this.sheetStringXml);
+    zip.file("xl/worksheets/sheet1.xml", cleanUpXml(this.sheetStringXml));
 
     const isBrowser =
       typeof window !== "undefined" &&
@@ -114,31 +115,33 @@ class XlsxWriter {
 
     return new Promise((resolve, reject) => {
       if (isBrowser) {
-        // we are in the browser
         zip
           .generateAsync({ type: "blob" })
           .then(resolve)
           .catch(reject);
       } else {
-        // zip
-        //   .generateAsync({ type: "nodebuffer", platform: process.platform })
-        //   .then(resolve)
-        //   .catch(reject);
-
         zip
-          .generateNodeStream({
-            type: "nodebuffer",
-            platform: process.platform,
-          })
-          .pipe(require('fs').createWriteStream("test.xlsx"))
-          .on("finish", () => {
-            // JSZip generates a readable stream with a "end" event,
-            // but is piped here in a writable stream which emits a "finish" event.
-            console.log(`test xlsx written.`);
-          });
+          .generateAsync({ type: "nodebuffer",  platform: process.platform})
+          .then(resolve)
+          .catch(reject);
+        // zip
+        //   .generateNodeStream({
+        //     type: "nodebuffer",
+        //     platform: process.platform,
+        //   })
+        //   .pipe(require('fs').createWriteStream("test.xlsx"))
+        //   .on("finish", () => {
+        //     // JSZip generates a readable stream with a "end" event,
+        //     // but is piped here in a writable stream which emits a "finish" event.
+        //     console.log(`test xlsx written.`);
+        //   });
       }
     });
   }
+}
+
+function cleanUpXml(xml) {
+  return xml.replace(/>\s+</g, "><").trim()
 }
 
 function getRange(cntRows, cntColumns) {

@@ -1,3 +1,5 @@
+const replaceRegex = /\s+/g;
+
 const contentTypes = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -13,7 +15,7 @@ const contentTypes = `
     <Override PartName="/xl/sharedStrings.xml"
               ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
 </Types>
-`.replace(/\n\s*/g, "");
+`.replace(replaceRegex, " ");
 
 const rels = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -22,7 +24,7 @@ const rels = `
                   Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
                   Target="xl/workbook.xml"/>
 </Relationships>
-`.replace(/\n\s*/g, "");
+`.replace(replaceRegex, " ");
 
 const workbook = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -38,7 +40,7 @@ const workbook = `
     </sheets>
     <calcPr calcId="145621"/>
 </workbook>
-`.replace(/\n\s*/g, "");
+`.replace(replaceRegex, " ");
 
 const workbookRels = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -53,7 +55,7 @@ const workbookRels = `
                   Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
                   Target="styles.xml"/>
 </Relationships>
-`.replace(/\n\s*/g, "");
+`.replace(replaceRegex, " ");
 
 const styles = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -106,7 +108,7 @@ const styles = `
         </ext>
     </extLst>
 </styleSheet>
-`.replace(/\n\s*/g, "");
+`.replace(replaceRegex, " ");
 
 module.exports = {
   contentTypes,
