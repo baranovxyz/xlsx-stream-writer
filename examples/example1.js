@@ -1,31 +1,15 @@
-const XlsxWriter = require("../src/xlsx-writer").XlsxWriter;
+const XlsxWriter = require("../src/xlsx-writer-browser");
+const fs = require("fs");
 
-const data = [
-  {
-    Name: "Bob",
-    Location: "Sweden",
-  },
-  {
-    Name: "Alice",
-    Location: "France",
-  },
-];
+const rows = [["Name", "Location"], ["Bob", "Sweden"], ["Alice", "France"]];
 
-const write = async (data, cb) => {
-  const rows = 1;
-  // columns = 0
-  // columns += 1 for key of data[0]
-  const columns = 2;
-
-  const writer = new XlsxWriter("mySpreadsheet.xlsx");
-  // console.log(writer);
-  await writer.prepare(rows, columns);
-
-  data.map(row => writer.addRow(row));
-  writer.pack(cb).then(() => {});
+const write = async rows => {
+  const xlsx = new XlsxWriter(2, 3);
+  rows.map(row => xlsx.addRow(row));
+  return xlsx.getFile();
 };
 
-write(data, function(err) {
-  // Error handling here
-  console.error({err});
-}).then(() => console.log("done!"));
+write(rows).then(blob => {
+  console.log("done!");
+  fs.writeFileSync("result.xlsx", blob);
+});

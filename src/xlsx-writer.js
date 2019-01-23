@@ -67,7 +67,7 @@ class XlsxWriter {
     this.sheetStream = fs.createWriteStream(
       this._filename("xl", "worksheets", "sheet1.xml"),
     );
-    this.sheetStream.write(blobs.sheetHeader(dimensions));
+    this.sheetStream.write(blobs.getSheetHeader(dimensions));
     this.prepared = true;
     return true;
   }
