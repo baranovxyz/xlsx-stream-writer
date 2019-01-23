@@ -56,17 +56,16 @@ class XlsxWriter {
   _addCell(value, colIndex) {
     const cellAddress = getCellAddress(this.currentRow, colIndex);
     let cellXml;
-    if (typeof value === "number") {
-      cellXml = xmlParts.getNumberCellXml(
-        Number.isNaN(value) ? "" : value,
-        cellAddress,
-      );
-    } else {
+    if (Number.isNaN(value) || value === null || typeof value === "undefined")
+      cellXml = xmlParts.getStringCellXml("", cellAddress);
+    else if (typeof value === "number")
+      cellXml = xmlParts.getNumberCellXml(value, cellAddress);
+    else
       cellXml = xmlParts.getStringCellXml(
         this._lookupString(String(value)),
         cellAddress,
       );
-    }
+
     this.rowBuffer += cellXml;
   }
 
@@ -105,9 +104,9 @@ class XlsxWriter {
     // add all static files
     Object.keys(this.xlsx).forEach(key => zip.file(key, this.xlsx[key]));
     // add "xl/sharedStrings.xml"
-    zip.file("xl/sharedStrings.xml", cleanUpXml(this.sharedStringsXml));
+    zip.file("xl/sharedStrings.xml", this.sharedStringsXml);
     // add "xl/worksheets/sheet1.xml"
-    zip.file("xl/worksheets/sheet1.xml", cleanUpXml(this.sheetStringXml));
+    zip.file("xl/worksheets/sheet1.xml", this.sheetStringXml);
 
     const isBrowser =
       typeof window !== "undefined" &&
@@ -116,12 +115,25 @@ class XlsxWriter {
     return new Promise((resolve, reject) => {
       if (isBrowser) {
         zip
-          .generateAsync({ type: "blob" })
+          .generateAsync({
+            type: "blob",
+            compression: "DEFLATE",
+            compressionOptions: {
+              level: 4,
+            },
+          })
           .then(resolve)
           .catch(reject);
       } else {
         zip
-          .generateAsync({ type: "nodebuffer",  platform: process.platform})
+          .generateAsync({
+            type: "nodebuffer",
+            platform: process.platform,
+            compression: "DEFLATE",
+            compressionOptions: {
+              level: 4,
+            },
+          })
           .then(resolve)
           .catch(reject);
         // zip
@@ -141,7 +153,7 @@ class XlsxWriter {
 }
 
 function cleanUpXml(xml) {
-  return xml.replace(/>\s+</g, "><").trim()
+  return xml.replace(/>\s+</g, "><").trim();
 }
 
 function getRange(cntRows, cntColumns) {

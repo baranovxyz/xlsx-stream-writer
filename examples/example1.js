@@ -1,7 +1,15 @@
 const XlsxWriter = require("../src/xlsx-writer-browser");
 const fs = require("fs");
 
-const rows = [["Name", "Location"], ["Bob", "Sweden"], ["Alice", "France"]];
+// const rows = [["Name", "Location"]];
+
+const name = "BobbyBobbyBobbyBobbyBobbyBobby";
+const location = "RussiaRussiaRussiaRussiaRussia";
+
+const rows = Array.from({ length: 1000 }, (_, i) => [
+  name.slice(0, 5 + i % 25).padStart(100, "0"),
+  location.slice(0, 5 + i % 25).padStart(100, "0"),
+]);
 
 const write = async rows => {
   const xlsx = new XlsxWriter();
