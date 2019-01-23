@@ -27,7 +27,6 @@ class XlsxWriter {
   }
 
   addRow(obj) {
-    // console.log('add row', this);
     if (!this.prepared) throw "Should call prepare() first!";
     if (!this.haveHeader) {
       this._startRow();
@@ -47,12 +46,9 @@ class XlsxWriter {
 
   prepare(rows, columns) {
     // Add one extra row for the header
-    // console.log('prepare', this);
     const dimensions = this.dimensions(rows + 1, columns);
-    console.log({ dimensions });
     this.tempPath = path.join(__dirname, "temp");
 
-    console.log("temp path", this.tempPath);
     fse.removeSync(this.tempPath);
     fse.mkdirSync(this.tempPath);
 
@@ -67,10 +63,6 @@ class XlsxWriter {
     fs.writeFileSync(
       this._filename("xl", "_rels", "workbook.xml.rels"),
       blobs.workbookRels,
-    );
-    console.log(
-      "sheet write stream",
-      this._filename("xl", "worksheets", "sheet1.xml"),
     );
     this.sheetStream = fs.createWriteStream(
       this._filename("xl", "worksheets", "sheet1.xml"),
@@ -95,7 +87,7 @@ class XlsxWriter {
 
     let stringTable = "";
     this.strings.map(text => {
-      stringTable += blobs.string(this.escapeXml(String(text)));
+      stringTable += blobs.string(escapeXml(String(text)));
     });
     fs.writeFileSync(
       this._filename("xl", "sharedStrings.xml"),
@@ -193,13 +185,13 @@ class XlsxWriter {
   _endRow() {
     this.sheetStream.write(this.rowBuffer + blobs.endRow);
   }
+}
 
-  escapeXml(str = "") {
-    return str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  }
+function escapeXml(str = "") {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 module.exports = { XlsxWriter };
