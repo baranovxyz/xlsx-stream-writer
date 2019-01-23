@@ -5,7 +5,7 @@ const JSZip = require("jszip");
 
 const blobs = require("./xml-parts");
 
-numberRegex = /^[1-9\.][\d\.]+$/;
+const numberRegex = /^[1-9\.][\d\.]+$/;
 
 class XlsxWriter {
   constructor(out) {
@@ -27,8 +27,8 @@ class XlsxWriter {
   }
 
   addRow(obj) {
-    console.log(this);
-    // if (!this.prepared) throw "Should call prepare() first!";
+    // console.log('add row', this);
+    if (!this.prepared) throw "Should call prepare() first!";
     if (!this.haveHeader) {
       this._startRow();
       let col = 1;
@@ -45,15 +45,16 @@ class XlsxWriter {
     this._endRow();
   }
 
-  async prepare(rows, columns) {
+  prepare(rows, columns) {
     // Add one extra row for the header
+    // console.log('prepare', this);
     const dimensions = this.dimensions(rows + 1, columns);
+    console.log({ dimensions });
     this.tempPath = path.join(__dirname, "temp");
 
-    console.log(this.tempPath);
+    console.log("temp path", this.tempPath);
     fse.removeSync(this.tempPath);
     fse.mkdirSync(this.tempPath);
-    console.log("temp must exists");
 
     fse.ensureDirSync(this._filename("_rels"));
     fse.ensureDirSync(this._filename("xl"));
@@ -67,6 +68,10 @@ class XlsxWriter {
       this._filename("xl", "_rels", "workbook.xml.rels"),
       blobs.workbookRels,
     );
+    console.log(
+      "sheet write stream",
+      this._filename("xl", "worksheets", "sheet1.xml"),
+    );
     this.sheetStream = fs.createWriteStream(
       this._filename("xl", "worksheets", "sheet1.xml"),
     );
@@ -75,13 +80,19 @@ class XlsxWriter {
     return true;
   }
 
-  async pack(cb) {
+  async _endSheet() {
+    return new Promise((resolve, reject) => {
+      this.sheetStream.write(blobs.sheetFooter);
+      this.sheetStream.end(() => resolve());
+    });
+  }
+
+  async pack() {
     if (!this.prepared) throw "Should call prepare() first!";
+    await this._endSheet();
 
     const zipfile = new JSZip();
 
-    await this.sheetStream.write(blobs.sheetFooter);
-    await this.sheetStream.end(cb);
     let stringTable = "";
     this.strings.map(text => {
       stringTable += blobs.string(this.escapeXml(String(text)));
@@ -120,12 +131,11 @@ class XlsxWriter {
     await zipfile
       .generateNodeStream({ type: "nodebuffer", streamFiles: true })
       .pipe(fs.createWriteStream(this.out))
-      .on("finish", function() {
+      .on("finish", () => {
         // JSZip generates a readable stream with a "end" event,
         // but is piped here in a writable stream which emits a "finish" event.
         console.log(`${this.out} written.`);
       });
-    cb();
   }
 
   dimensions(rows, columns) {

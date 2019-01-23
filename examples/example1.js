@@ -11,24 +11,21 @@ const data = [
   },
 ];
 
-
 const write = async (data, cb) => {
-  const rows = data.length;
+  const rows = 1;
   // columns = 0
   // columns += 1 for key of data[0]
-  const columns = (data && data[0] && data[0].length) || 0;
+  const columns = 2;
 
   const writer = new XlsxWriter("mySpreadsheet.xlsx");
-  console.log(writer);
-  await writer.prepare.bind(writer)(rows, columns);
+  // console.log(writer);
+  await writer.prepare(rows, columns);
 
-  data.map(writer.addRow.bind(writer));
-  writer.pack
-    .bind(writer)(cb)
-    .then(() => {});
+  data.map(row => writer.addRow(row));
+  writer.pack(cb).then(() => {});
 };
 
 write(data, function(err) {
   // Error handling here
-  console.error(err);
+  console.error({err});
 }).then(() => console.log("done!"));
