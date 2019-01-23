@@ -1,9 +1,16 @@
+const Writable = require("stream-browserify").Writable;
 const JSZip = require("jszip");
 const xmlParts = require("./xml-parts");
 const xmlBlobs = require("./xml-blobs");
+const { getCellAddress, getCellXml, getRowXml } = require("./helpers");
 
-class XlsxWriter {
+class XlsxWriter extends Writable {
   constructor() {
+    // https://github.com/substack/stream-handbook
+    // If the readable stream you're piping from writes strings, they will be converted
+    // into Buffers unless you create your writable stream
+    // with Writable({ decodeStrings: false }).
+    super({ decodeStrings: true });
     this.sharedStrings = [];
     this.sharedStringsMap = {};
 
@@ -20,7 +27,38 @@ class XlsxWriter {
       "xl/_rels/workbook.xml.rels": cleanUpXml(xmlBlobs.workbookRels),
     };
 
+    this.on("pipe", () => {
+      console.log("pipe");
+    });
+
+    this.on("unpipe", () => {
+      console.log("unpipe");
+    });
+
+    this.on("end", () => {
+      console.log("end");
+    });
+
+    this.on("finish", () => {
+      console.log("finish");
+    });
+
+    this.on("close", () => {
+      console.log("close");
+    });
+
+    this.on("drain", () => {
+      console.log("drain");
+    });
+
     this._startSheet();
+  }
+
+  // write rows here
+  _write(chunk, enc, next) {
+    if (chunk === null) console.log("i got null!");
+    console.log(chunk);
+    next();
   }
 
   addRow(row) {
@@ -30,6 +68,7 @@ class XlsxWriter {
   }
 
   end() {
+    console.log("end is called!");
     this._endSheet();
     this._processSharedStrings();
     this.sheetEnded = true;
@@ -156,25 +195,6 @@ function cleanUpXml(xml) {
   return xml.replace(/>\s+</g, "><").trim();
 }
 
-function getRange(cntRows, cntColumns) {
-  return "A1:" + getCellAddress(cntRows, cntColumns);
-}
-
-function getCellAddress(rowIndex, colIndex) {
-  let colAddress = "";
-  let input = (colIndex - 1).toString(26);
-  while (input.length) {
-    const a = input.charCodeAt(input.length - 1);
-    colAddress =
-      String.fromCharCode(a + (a >= 48 && a <= 57 ? 17 : -22)) + colAddress;
-    input =
-      input.length > 1
-        ? (parseInt(input.substr(0, input.length - 1), 26) - 1).toString(26)
-        : "";
-  }
-  return colAddress + rowIndex;
-}
-
 function escapeXml(str = "") {
   return str
     .replace(/&/g, "&amp;")
@@ -182,4 +202,4 @@ function escapeXml(str = "") {
     .replace(/>/g, "&gt;");
 }
 
-module.exports = XlsxWriter;
+module.exports = { XlsxWriter, getRowXml };
