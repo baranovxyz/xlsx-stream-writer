@@ -16,7 +16,7 @@ Plans:
 
 You can add rows:
 ```javascript
-const XlsxWriter = require("xlsx-writer-browser");
+const XlsxStreamWriter = require("xlsx-stream-writer");
 const fs = require("fs");
 
 const rows = [
@@ -26,7 +26,7 @@ const rows = [
   ["Charlie", "Chicago"],
 ];
 
-const xlsx = new XlsxWriter();
+const xlsx = new XlsxStreamWriter();
 xlsx.addRows(rows);
 
 xlsx.getFile().then(buffer => {
@@ -36,7 +36,7 @@ xlsx.getFile().then(buffer => {
 
 Or add readable stream of rows:
 ```javascript
-const XlsxWriter = require("xlsx-writer-browser");
+const XlsxStreamWriter = require("xlsx-stream-writer");
 const Readable = require("stream-browserify").Readable;
 const fs = require("fs");
 
@@ -59,7 +59,7 @@ function wrapRowsInStream(rows) {
 }
 const streamOfRows = wrapRowsInStream(rows);
 
-const xlsx = new XlsxWriter();
+const xlsx = new XlsxStreamWriter();
 xlsx.addRows(streamOfRows);
 
 xlsx.getFile().then(buffer => {

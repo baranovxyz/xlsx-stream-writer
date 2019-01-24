@@ -1,7 +1,7 @@
 {
   "name": "xlsx-stream-writer",
-  "version": "0.2.0",
-  "description": "Xlsx writer for browser and nodejs",
+  "version": "0.2.1",
+  "description": "Create xlsx in streaming mode in browser and nodejs",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -12,5 +12,14 @@
     "jszip": "^3.1.5",
     "stream-browserify": "^2.0.2"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baranovxyz/xlsx-stream-writer.git"
+  },
+  "keywords": [
+    "xlsx",
+    "stream",
+    "write"
+  ],
   "devDependencies": {}
 }

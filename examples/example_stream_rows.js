@@ -1,4 +1,4 @@
-const XlsxWriter = require("../src/xlsx-writer-browser");
+const XlsxStreamWriter = require("../src/xlsx-writer-browser");
 const Readable = require("stream-browserify").Readable;
 const fs = require("fs");
 
@@ -21,7 +21,7 @@ function wrapRowsInStream(rows) {
 }
 const streamOfRows = wrapRowsInStream(rows);
 
-const xlsx = new XlsxWriter();
+const xlsx = new XlsxStreamWriter();
 xlsx.addRows(streamOfRows);
 
 xlsx.getFile().then(buffer => {

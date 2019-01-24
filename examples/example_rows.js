@@ -1,4 +1,4 @@
-const XlsxWriter = require("../src/xlsx-writer-browser");
+const XlsxStreamWriter = require("../src/xlsx-writer-browser");
 const fs = require("fs");
 
 const rows = [
@@ -8,7 +8,7 @@ const rows = [
   ["Charlie", "Chicago"],
 ];
 
-const xlsx = new XlsxWriter();
+const xlsx = new XlsxStreamWriter();
 xlsx.addRows(rows);
 
 xlsx.getFile().then(buffer => {
