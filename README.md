@@ -12,6 +12,7 @@ Plans:
 - add tests
 - make browser build, put on some cdn
 - optimize shared string stuff
+- (maybe) use web workers to build xlsx in browser
 - (maybe) implement some specifis for nodejs
 
 You can add rows:
