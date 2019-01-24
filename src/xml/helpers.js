@@ -1,4 +1,4 @@
-const xmlParts = require("./xml-parts");
+const xmlParts = require("./parts");
 
 function getCellAddress(rowIndex, colIndex) {
   let colAddress = "";

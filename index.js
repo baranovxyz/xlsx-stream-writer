@@ -1,1 +1,1 @@
-module.exports = require("./src/xlsx-writer-browser");
+module.exports = require("./src/xlsx-stream-writer");

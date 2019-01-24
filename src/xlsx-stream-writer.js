@@ -1,9 +1,9 @@
 const Readable = require("stream-browserify").Readable;
 const PassThrough = require("stream-browserify").PassThrough;
 const JSZip = require("jszip");
-const xmlParts = require("./xml-parts");
-const xmlBlobs = require("./xml-blobs");
-const { getCellAddress, getRowXml } = require("./helpers");
+const xmlParts = require("./xml/parts");
+const xmlBlobs = require("./xml/blobs");
+const { getCellAddress, getRowXml } = require("./xml/helpers");
 
 class XlsxWriter {
   constructor() {
