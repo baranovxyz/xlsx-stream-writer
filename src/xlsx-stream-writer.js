@@ -1,27 +1,21 @@
 const Readable = require("stream-browserify").Readable;
+const Writable = require("stream-browserify").Writable;
 const PassThrough = require("stream-browserify").PassThrough;
 const JSZip = require("jszip");
 const xmlParts = require("./xml/parts");
 const xmlBlobs = require("./xml/blobs");
-const { getCellAddress, getRowXml } = require("./xml/helpers");
+const { getCellAddress } = require("./helpers");
+// const { crc32 } = require("crc");
 
-class XlsxWriter {
+class XlsxStreamWriter {
   constructor() {
-    // https://github.com/substack/stream-handbook
-    // If the readable stream you're piping from writes strings, they will be converted
-    // into Buffers unless you create your writable stream
-    // with Writable({ decodeStrings: false }).
-    this.sharedStrings = [];
-    this.sharedStringsMap = {};
-
-    this.currentRow = 0;
-    this.sheetEnded = false;
-
     this.sheetXmlStream = null;
+
     this.sharedStringsXmlStream = null;
-    this.sharedStringsXml = "";
-    // this.sharedStringsXml = "";
-    // this.sheetStringXml = "";
+    this.sharedStringsArr = [];
+    this.sharedStringsMap = {};
+    this.sharedStringsHashMap = {};
+
     this.xlsx = {
       "[Content_Types].xml": cleanUpXml(xmlBlobs.contentTypes),
       "_rels/.rels": cleanUpXml(xmlBlobs.rels),
@@ -29,8 +23,6 @@ class XlsxWriter {
       "xl/styles.xml": cleanUpXml(xmlBlobs.styles),
       "xl/_rels/workbook.xml.rels": cleanUpXml(xmlBlobs.workbookRels),
     };
-
-    this._startSheet();
   }
 
   /**
@@ -57,23 +49,57 @@ class XlsxWriter {
     let c = 0;
     ts._transform = (data, encoding, callback) => {
       if (c === 0) {
-        // console.log("push sheet header");
         ts.push(xmlParts.sheetHeader);
       }
-      // console.log("push data:", JSON.stringify(data).slice(0, 100));
-      const rowXml = getRowXml.bind(this)(data, c);
-      // console.log(rowXml);
+      const rowXml = this._getRowXml(data, c);
       ts.push(rowXml);
       c++;
       callback();
     };
 
     ts._flush = cb => {
-      // console.log("push sheet footer");
       ts.push(xmlParts.sheetFooter);
       cb();
     };
     return ts;
+  }
+
+  _getRowXml(row, rowIndex) {
+    let rowXml = xmlParts.getRowStart(rowIndex);
+    row.forEach((cellValue, colIndex) => {
+      const cellAddress = getCellAddress(rowIndex + 1, colIndex + 1);
+      rowXml += this._getCellXml(cellValue, cellAddress);
+    });
+    rowXml += xmlParts.rowEnd;
+    return rowXml;
+  }
+
+  _getCellXml(value, address) {
+    let cellXml;
+    if (Number.isNaN(value) || value === null || typeof value === "undefined")
+      cellXml = xmlParts.getStringCellXml("", address);
+    else if (typeof value === "number")
+      cellXml = xmlParts.getNumberCellXml(value, address);
+    else
+      cellXml = this._getStringCellXml(
+        this._lookupString(String(value)),
+        address,
+      );
+    return cellXml;
+  }
+
+  _getStringCellXml(value) {
+    const stringValue = String(value);
+    return xmlParts.getStringCellXml(this._lookupString(stringValue), address);
+  }
+
+  _lookupString(value) {
+    let sharedStringIndex = this.sharedStringsMap[value];
+    if (typeof sharedStringIndex !== "undefined") return sharedStringIndex;
+    sharedStringIndex = this.sharedStringsArr.length;
+    this.sharedStringsMap[value] = sharedStringIndex;
+    this.sharedStringsArr.push(value);
+    return sharedStringIndex;
   }
 
   _getSharedStringsXmlStream() {
@@ -81,78 +107,30 @@ class XlsxWriter {
     let c = 0;
     rs._read = () => {
       if (c === 0) {
-        rs.push(xmlParts.getSharedStringsHeader(this.sharedStrings.length));
+        rs.push(xmlParts.getSharedStringsHeader(this.sharedStringsArr.length));
       }
-      if (c === this.sharedStrings.length) {
+      if (c === this.sharedStringsArr.length) {
         rs.push(xmlParts.sharedStringsFooter);
         rs.push(null);
       } else
         rs.push(
-          xmlParts.getSharedStringXml(escapeXml(String(this.sharedStrings[c]))),
+          xmlParts.getSharedStringXml(
+            escapeXml(String(this.sharedStringsArr[c])),
+          ),
         );
       c++;
     };
     return rs;
   }
 
-  addRow(row) {
-    this._startRow();
-    row.forEach((value, index) => this._addCell(value, index + 1));
-    this._endRow();
-  }
-
-  endSheet() {
-    this._endSheet();
+  _clearSharedStrings() {
     this.sharedStringsMap = {};
-    this.sheetEnded = true;
-  }
-
-  _startSheet() {
-    // const sheetRange = getRange(numRows, numColumns);
-    this.sheetStringXml = xmlParts.sheetHeader;
-  }
-
-  _endSheet() {
-    this.sheetStringXml += xmlParts.sheetFooter;
-  }
-
-  _startRow() {
-    this.rowBuffer = xmlParts.getRowStart(this.currentRow);
-    this.currentRow++;
-  }
-
-  _endRow() {
-    this.sheetStringXml += this.rowBuffer + xmlParts.rowEnd;
-  }
-
-  _addCell(value, colIndex) {
-    const cellAddress = getCellAddress(this.currentRow, colIndex);
-    let cellXml;
-    if (Number.isNaN(value) || value === null || typeof value === "undefined")
-      cellXml = xmlParts.getStringCellXml("", cellAddress);
-    else if (typeof value === "number")
-      cellXml = xmlParts.getNumberCellXml(value, cellAddress);
-    else
-      cellXml = xmlParts.getStringCellXml(
-        this._lookupString(String(value)),
-        cellAddress,
-      );
-
-    this.rowBuffer += cellXml;
-  }
-
-  _lookupString(value) {
-    let sharedStringIndex = this.sharedStringsMap[value];
-    if (typeof sharedStringIndex !== "undefined") return sharedStringIndex;
-    sharedStringIndex = this.sharedStrings.length;
-    this.sharedStringsMap[value] = sharedStringIndex;
-    this.sharedStrings.push(value);
-    return sharedStringIndex;
+    this.sharedStringsArr = [];
   }
 
   // returns blob in a browser, buffer in nodejs
   getFile() {
-    this.endSheet();
+    this._clearSharedStrings();
     const zip = new JSZip();
     // add all static files
     Object.keys(this.xlsx).forEach(key => zip.file(key, this.xlsx[key]));
@@ -161,9 +139,8 @@ class XlsxWriter {
     zip.file("xl/worksheets/sheet1.xml", this.sheetXmlStream);
     // add "xl/sharedStrings.xml"
     zip.file("xl/sharedStrings.xml", this.sharedStringsXmlStream);
-    // clean shared strings
-    this.sharedStrings = [];
-    
+    this._clearSharedStrings();
+
     const isBrowser =
       typeof window !== "undefined" &&
       {}.toString.call(window) === "[object Window]";
@@ -232,4 +209,4 @@ function escapeXml(str = "") {
     .replace(/>/g, "&gt;");
 }
 
-module.exports = XlsxWriter;
+module.exports = XlsxStreamWriter;
