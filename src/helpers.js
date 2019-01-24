@@ -1,3 +1,6 @@
+const Readable = require("stream-browserify").Readable;
+const Writable = require("stream-browserify").Writable;
+
 function getCellAddress(rowIndex, colIndex) {
   let colAddress = "";
   let input = (colIndex - 1).toString(26);
@@ -13,6 +16,33 @@ function getCellAddress(rowIndex, colIndex) {
   return colAddress + rowIndex;
 }
 
+function getXmlFromXmlStream(xmlStream) {
+  return new Promise((resolve, reject) => {
+    const ws = Writable();
+    let xml = "";
+    ws._write = function(chunk, enc, next) {
+      xml += chunk.toString();
+      next();
+    };
+    xmlStream.pipe(ws);
+    ws.on("finish", () => resolve(xml));
+    ws.on("error", reject);
+  });
+}
+
+function wrapRowsInStream(rows) {
+  const rs = Readable({ objectMode: true });
+  let c = 0;
+  rs._read = function() {
+    if (c === rows.length) rs.push(null);
+    else rs.push(rows[c]);
+    c++;
+  };
+  return rs;
+}
+
 module.exports = {
   getCellAddress,
+  wrapRowsInStream,
+  getXmlFromXmlStream,
 };

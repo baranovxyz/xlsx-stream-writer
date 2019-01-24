@@ -11,9 +11,9 @@ const rows = [
 
 const streamOfRows = wrapRowsInStream(rows);
 
-const xlsx = new XlsxStreamWriter();
+const options = { inlineStrings: true };
+const xlsx = new XlsxStreamWriter(options);
 xlsx.addRows(streamOfRows);
-
 xlsx.getFile().then(buffer => {
-  fs.writeFileSync("result.xlsx", buffer);
+  fs.writeFileSync("result-inline-strings.xlsx", buffer);
 });

@@ -3,11 +3,16 @@ const PassThrough = require("stream-browserify").PassThrough;
 const JSZip = require("jszip");
 const xmlParts = require("./xml/parts");
 const xmlBlobs = require("./xml/blobs");
-const { getCellAddress } = require("./helpers");
+const { getCellAddress, wrapRowsInStream } = require("./helpers");
 // const { crc32 } = require("crc");
 
+const defaultOptions = {
+  inlineStrings: false,
+};
+
 class XlsxStreamWriter {
-  constructor() {
+  constructor(options) {
+    this.options = Object.assign(defaultOptions, options);
     this.sheetXmlStream = null;
 
     this.sharedStringsXmlStream = null;
@@ -85,7 +90,9 @@ class XlsxStreamWriter {
 
   _getStringCellXml(value, address) {
     const stringValue = String(value);
-    return xmlParts.getStringCellXml(this._lookupString(stringValue), address);
+    return this.options.inlineStrings
+      ? xmlParts.getInlineStringCellXml(escapeXml(stringValue), address)
+      : xmlParts.getStringCellXml(this._lookupString(stringValue), address);
   }
 
   _lookupString(value) {
@@ -180,17 +187,6 @@ class XlsxStreamWriter {
       }
     });
   }
-}
-
-function wrapRowsInStream(rows) {
-  const rs = Readable({ objectMode: true });
-  let c = 0;
-  rs._read = function() {
-    if (c === rows.length) rs.push(null);
-    else rs.push(rows[c]);
-    c++;
-  };
-  return rs;
 }
 
 function cleanUpXml(xml) {

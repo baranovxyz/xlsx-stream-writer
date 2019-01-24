@@ -5,6 +5,8 @@ const getRowStart = row => `<row r="${row + 1}">`;
 const rowEnd = "</row>";
 const getStringCellXml = (index, cell) =>
   `<c r="${cell}" t="s"><v>${index}</v></c>`;
+const getInlineStringCellXml = (value, cell) =>
+  `<c r="${cell}" t="inlineStr"><is><t>${value}</t></is></c>`;
 const getNumberCellXml = (value, cell) =>
   `<c r="${cell}" t="n"><v>${value}</v></c>`;
 
@@ -47,6 +49,7 @@ module.exports = {
   getRowStart,
   rowEnd,
   getStringCellXml,
+  getInlineStringCellXml,
   getNumberCellXml,
   sheetFooter,
 };
