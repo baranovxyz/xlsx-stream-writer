@@ -1,6 +1,6 @@
 {
   "name": "xlsx-stream-writer",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Create xlsx in streaming mode in browser and nodejs",
   "main": "index.js",
   "scripts": {
