@@ -1,4 +1,5 @@
 const Writable = require("stream-browserify").Writable;
+const Readable = require("stream-browserify").Readable;
 const JSZip = require("jszip");
 const xmlParts = require("./xml-parts");
 const xmlBlobs = require("./xml-blobs");
@@ -17,8 +18,13 @@ class XlsxWriter extends Writable {
     this.currentRow = 0;
     this.sheetEnded = false;
 
+    // stream of rows here
+    this.sheetXmlStream = null;
+
+    this.sharedStringsXmlStream = null;
     this.sharedStringsXml = "";
-    this.sheetStringXml = "";
+    // this.sharedStringsXml = "";
+    // this.sheetStringXml = "";
     this.xlsx = {
       "[Content_Types].xml": cleanUpXml(xmlBlobs.contentTypes),
       "_rels/.rels": cleanUpXml(xmlBlobs.rels),
@@ -59,6 +65,32 @@ class XlsxWriter extends Writable {
     if (chunk === null) console.log("i got null!");
     console.log(chunk);
     next();
+  }
+
+  // add rows xml stream here
+  addRowsStream(sheetXmlStream) {
+    this.sheetXmlStream = sheetXmlStream;
+    
+    
+
+    const rs = Readable();
+
+    let c = 0;
+    rs._read = () => {
+      if (c === 0) {
+        rs.push(xmlParts.getSharedStringsHeader(this.sharedStrings.length));
+      }
+      if (c === this.sharedStrings.length) {
+        rs.push(xmlParts.sharedStringsFooter);
+        rs.push(null);
+      } else
+        rs.push(
+          xmlParts.getSharedStringXml(escapeXml(String(this.sharedStrings[c]))),
+        );
+      c++;
+    };
+
+    this.sharedStringsXmlStream = rs;
   }
 
   addRow(row) {
@@ -142,10 +174,12 @@ class XlsxWriter extends Writable {
     const zip = new JSZip();
     // add all static files
     Object.keys(this.xlsx).forEach(key => zip.file(key, this.xlsx[key]));
-    // add "xl/sharedStrings.xml"
-    zip.file("xl/sharedStrings.xml", this.sharedStringsXml);
+
     // add "xl/worksheets/sheet1.xml"
-    zip.file("xl/worksheets/sheet1.xml", this.sheetStringXml);
+    // zip.file("xl/worksheets/sheet1.xml", this.sheetStringXml);
+    zip.file("xl/worksheets/sheet1.xml", this.sheetXmlStream);
+    // add "xl/sharedStrings.xml"
+    zip.file("xl/sharedStrings.xml", this.sharedStringsXmlStream);
 
     const isBrowser =
       typeof window !== "undefined" &&
@@ -160,6 +194,7 @@ class XlsxWriter extends Writable {
             compressionOptions: {
               level: 4,
             },
+            streamFiles: true,
           })
           .then(resolve)
           .catch(reject);
@@ -172,6 +207,7 @@ class XlsxWriter extends Writable {
             compressionOptions: {
               level: 4,
             },
+            streamFiles: true,
           })
           .then(resolve)
           .catch(reject);

@@ -18,7 +18,7 @@ function getCellAddress(rowIndex, colIndex) {
 function getRowXml(row, rowIndex) {
   let rowBuffer = xmlParts.getRowStart(rowIndex);
   row.forEach((cellValue, colIndex) => {
-    const cellAddress = getCellAddress(this.currentRow, colIndex);
+    const cellAddress = getCellAddress(rowIndex + 1, colIndex + 1);
     rowBuffer += getCellXml.bind(this)(cellValue, cellAddress);
   });
   rowBuffer += xmlParts.rowEnd;

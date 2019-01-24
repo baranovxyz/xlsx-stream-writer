@@ -2,3 +2,5 @@
 node_modules
 **/*.xlsx
 **/*.log
+**/*.xml
+result**

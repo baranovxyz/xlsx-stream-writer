@@ -2,6 +2,8 @@ const XlsxWriter = require("../src/xlsx-writer-browser").XlsxWriter;
 const getRowXml = require("../src/xlsx-writer-browser").getRowXml;
 const fs = require("fs");
 
+const xmlParts = require("../src/xml-parts");
+
 // const rows = [["Name", "Location"]];
 
 const name = "BobbyBobbyBobbyBobbyBobbyBobby";
@@ -13,18 +15,23 @@ const rows = Array.from({ length: 10 }, (_, i) => [
 ]);
 
 var Readable = require("stream-browserify").Readable;
-var rs = Readable();
+var rs = Readable({ objectMode: true });
 
 let c = 0;
 rs._read = function() {
-  if (c === rows.length) return rs.push(null);
-  rs.push(getRowXml.bind(xlsx)(rows[c], c));
+  if (c === rows.length) rs.push(null);
+  else rs.push(rows[c]);
   c++;
 };
 
-const xlsx = new XlsxWriter({decodeStrings: true});
+const xlsx = new XlsxWriter({ decodeStrings: true });
+xlsx.addRowsStream(rs);
+// rs.pipe(xlsx);
 
-rs.pipe(xlsx);
+xlsx.getFile().then(buffer => {
+  console.log(buffer);
+  fs.writeFileSync("result.xlsx", buffer);
+});
 // xlsx.end();
 //
 // const write = async rows => {
