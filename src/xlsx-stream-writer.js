@@ -1,5 +1,4 @@
 const Readable = require("stream-browserify").Readable;
-const Writable = require("stream-browserify").Writable;
 const PassThrough = require("stream-browserify").PassThrough;
 const JSZip = require("jszip");
 const xmlParts = require("./xml/parts");
@@ -80,15 +79,11 @@ class XlsxStreamWriter {
       cellXml = xmlParts.getStringCellXml("", address);
     else if (typeof value === "number")
       cellXml = xmlParts.getNumberCellXml(value, address);
-    else
-      cellXml = this._getStringCellXml(
-        this._lookupString(String(value)),
-        address,
-      );
+    else cellXml = this._getStringCellXml(value, address);
     return cellXml;
   }
 
-  _getStringCellXml(value) {
+  _getStringCellXml(value, address) {
     const stringValue = String(value);
     return xmlParts.getStringCellXml(this._lookupString(stringValue), address);
   }

@@ -1,4 +1,5 @@
 const replaceRegex = /\s+/g;
+const replaceReSec = />\s+</g;
 
 const contentTypes = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -14,8 +15,10 @@ const contentTypes = `
               ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
     <Override PartName="/xl/sharedStrings.xml"
               ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
-</Types>
-`.replace(replaceRegex, " ");
+</Types>`
+  .replace(replaceRegex, " ")
+  .replace(replaceReSec, "><")
+  .trim();
 
 const rels = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -23,8 +26,10 @@ const rels = `
     <Relationship Id="rId1"
                   Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
                   Target="xl/workbook.xml"/>
-</Relationships>
-`.replace(replaceRegex, " ");
+</Relationships>`
+  .replace(replaceRegex, " ")
+  .replace(replaceReSec, "><")
+  .trim();
 
 const workbook = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -39,8 +44,10 @@ const workbook = `
         <sheet name="Data" sheetId="1" r:id="rId1"/>
     </sheets>
     <calcPr calcId="145621"/>
-</workbook>
-`.replace(replaceRegex, " ");
+</workbook>`
+  .replace(replaceRegex, " ")
+  .replace(replaceReSec, "><")
+  .trim();
 
 const workbookRels = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -54,8 +61,10 @@ const workbookRels = `
     <Relationship Id="rId3"
                   Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
                   Target="styles.xml"/>
-</Relationships>
-`.replace(replaceRegex, " ");
+</Relationships>`
+  .replace(replaceRegex, " ")
+  .replace(replaceReSec, "><")
+  .trim();
 
 const styles = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -107,8 +116,10 @@ const styles = `
             <x14:slicerStyles defaultSlicerStyle="SlicerStyleLight1"/>
         </ext>
     </extLst>
-</styleSheet>
-`.replace(replaceRegex, " ");
+</styleSheet>`
+  .replace(replaceRegex, " ")
+  .replace(replaceReSec, "><")
+  .trim();
 
 module.exports = {
   contentTypes,
