@@ -1,8 +1,6 @@
 const XlsxWriter = require("../src/xlsx-writer-browser");
 const fs = require("fs");
 
-// const rows = [["Name", "Location"]];
-
 const name = "BobbyBobbyBobbyBobbyBobbyBobby";
 const location = "RussiaRussiaRussiaRussiaRussia";
 
