@@ -1,5 +1,6 @@
 const Writable = require("stream-browserify").Writable;
 const Readable = require("stream-browserify").Readable;
+const PassThrough = require("stream-browserify").PassThrough;
 const JSZip = require("jszip");
 const xmlParts = require("./xml-parts");
 const xmlBlobs = require("./xml-blobs");
@@ -68,13 +69,48 @@ class XlsxWriter extends Writable {
   }
 
   // add rows xml stream here
-  addRowsStream(sheetXmlStream) {
-    this.sheetXmlStream = sheetXmlStream;
-    
-    
+  addRowsStream(rowsStream) {
+    const ts = PassThrough({ objectMode: true });
+    let c = 0;
+    ts._transform = (data, encoding, callback) => {
+      if (c === 0) {
+        // console.log("push sheet header");
+        ts.push(xmlParts.sheetHeader);
+      }
+      // console.log("push data:", JSON.stringify(data).slice(0, 100));
+      const rowXml = getRowXml.bind(this)(data, c);
+      // console.log(rowXml);
+      ts.push(rowXml);
+      c++;
+      callback();
+    };
 
+    ts._flush = cb => {
+      console.log("push sheet footer");
+      ts.push(xmlParts.sheetFooter);
+      cb();
+    };
+
+    // const ws = Writable({objectMode: true});
+    // ws._write = (chunk, enc, next) => {
+    //   if (chunk === null) console.log("i got null!");
+    //   console.log(chunk);
+    //   next();
+    // };
+    //
+    // rowsStream.pipe(ws);
+
+    // const rs = rowsStream.pipe(ts)
+    //
+    //   rs.on("data", (data) => console.log(data))
+    // rs.drain()
+
+    this.sheetXmlStream = rowsStream.pipe(ts);
+    this.sharedStringsXmlStream = this._getSharedStringsXmlStream();
+  }
+
+  _getSharedStringsXmlStream() {
     const rs = Readable();
-
     let c = 0;
     rs._read = () => {
       if (c === 0) {
@@ -89,8 +125,7 @@ class XlsxWriter extends Writable {
         );
       c++;
     };
-
-    this.sharedStringsXmlStream = rs;
+    return rs;
   }
 
   addRow(row) {
@@ -238,4 +273,4 @@ function escapeXml(str = "") {
     .replace(/>/g, "&gt;");
 }
 
-module.exports = { XlsxWriter, getRowXml };
+module.exports = XlsxWriter;

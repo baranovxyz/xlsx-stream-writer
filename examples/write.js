@@ -1,8 +1,8 @@
 const XlsxWriter = require("../src/xlsx-writer-browser").XlsxWriter;
-const getRowXml = require("../src/xlsx-writer-browser").getRowXml;
+// const getRowXml = require("../src/xlsx-writer-browser").getRowXml;
 const fs = require("fs");
 
-const xmlParts = require("../src/xml-parts");
+// const xmlParts = require("../src/xml-parts");
 
 // const rows = [["Name", "Location"]];
 
@@ -24,7 +24,7 @@ rs._read = function() {
   c++;
 };
 
-const xlsx = new XlsxWriter({ decodeStrings: true });
+const xlsx = new XlsxWriter();
 xlsx.addRowsStream(rs);
 // rs.pipe(xlsx);
 
