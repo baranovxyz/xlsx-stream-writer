@@ -1,29 +1,68 @@
 This was rewritten from coffee script https://github.com/rubenv/node-xlsx-writer and 
-changed to work in browser. Api is different from rubenv implementation.
+changed to work both in browser and nodejs. Api is completely different from rubenv 
+implementation.
 
-Does not actually stream data, more like a future plan.
-Though, it should be efficient enough...
+It is actually capable of streaming rows into xlsx file both in browser and nodejs.
 
-It uses JSZip to compress resulting structure, so will work both in nodejs and in browser.
+It uses JSZip to compress resulting structure. Lucky for us JSZip is capable of 
+processing readable streams, so we just stream rows into xlxs file (which is a zip file).
 
 Plans:
-- test for large files (when string size in browser will be an issue)
+- improve api
 - add tests
-- implement a better version for nodejs
-- (maybe) implement or find some kind of streaming zip module for browser
+- make browser build, put on some cdn
+- optimize shared string stuff
+- (maybe) implement some specifis for nodejs
 
+You can add rows:
 ```javascript
-const XLSX = require("xlsx-stream-writer");
+const XlsxWriter = require("xlsx-writer-browser");
 const fs = require("fs");
 
-const rows = [["Name", "Location"], ["Bob", "Sweden"], ["Alice", "France"]];
+const rows = [
+  ["Name", "Location"],
+  ["Alpha", "Adams"],
+  ["Bravo", "Boston"],
+  ["Charlie", "Chicago"],
+];
 
-const xlsx = new XLSX();
-rows.map(row => xlsx.addRow(row));
-xlsx
-  .getFile()
-  .then(buffer => {
-    fs.writeFileSync("test_file.xlsx", buffer);
-  })
-  .catch(console.error);
+const xlsx = new XlsxWriter();
+xlsx.addRows(rows);
+
+xlsx.getFile().then(buffer => {
+  fs.writeFileSync("result.xlsx", buffer);
+});
+```
+
+Or add readable stream of rows:
+```javascript
+const XlsxWriter = require("xlsx-writer-browser");
+const Readable = require("stream-browserify").Readable;
+const fs = require("fs");
+
+const rows = [
+  ["Name", "Location"],
+  ["Alpha", "Adams"],
+  ["Bravo", "Boston"],
+  ["Charlie", "Chicago"],
+];
+
+function wrapRowsInStream(rows) {
+  const rs = Readable({ objectMode: true });
+  let c = 0;
+  rs._read = function() {
+    if (c === rows.length) rs.push(null);
+    else rs.push(rows[c]);
+    c++;
+  };
+  return rs;
+}
+const streamOfRows = wrapRowsInStream(rows);
+
+const xlsx = new XlsxWriter();
+xlsx.addRows(streamOfRows);
+
+xlsx.getFile().then(buffer => {
+  fs.writeFileSync("result.xlsx", buffer);
+});
 ```
