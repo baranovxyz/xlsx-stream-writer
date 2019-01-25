@@ -5,8 +5,9 @@ const getRowStart = row => `<row r="${row + 1}">`;
 const rowEnd = "</row>";
 const getStringCellXml = (index, cell) =>
   `<c r="${cell}" t="s"><v>${index}</v></c>`;
-const getInlineStringCellXml = (value, cell) =>
-  `<c r="${cell}" t="inlineStr"><is><t>${value}</t></is></c>`;
+const getInlineStringCellXml = (s, cell) => `<c r="${cell}" t="inlineStr"><is><t>${s}</t></is></c>`;
+// const getSharedStringXml = s => `<si><t>${s}</t></si>`;
+
 const getNumberCellXml = (value, cell) =>
   `<c r="${cell}" t="n"><v>${value}</v></c>`;
 
@@ -37,8 +38,7 @@ const getSharedStringsHeader = count =>
     .replace(replaceReSec, "><")
     .trim();
 
-const getSharedStringXml = s =>
-  `<si><t>${s}</t></si>`.replace(replaceRegex, " ");
+const getSharedStringXml = s => `<si><t>${s}</t></si>`;
 const sharedStringsFooter = "</sst>";
 
 module.exports = {

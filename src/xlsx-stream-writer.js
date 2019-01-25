@@ -44,8 +44,21 @@ class XlsxStreamWriter {
         "Argument must be an array of arrays or a readable stream of arrays",
       );
     const rowsToXml = this._getRowsToXmlTransformStream();
-    this.sheetXmlStream = rowsStream.pipe(rowsToXml);
+    const tsToString = this._getToStringTransforStream();
+    // TODO why do we need to call .toString in case we want to inline strings?
+    this.sheetXmlStream = this.options.inlineStrings
+      ? rowsStream.pipe(rowsToXml).pipe(tsToString)
+      : rowsStream.pipe(rowsToXml);
     this.sharedStringsXmlStream = this._getSharedStringsXmlStream();
+  }
+
+  _getToStringTransforStream() {
+    const ts = PassThrough();
+    ts._transform = (data, encoding, callback) => {
+      ts.push(data.toString(), "utf8");
+      callback();
+    };
+    return ts;
   }
 
   _getRowsToXmlTransformStream() {
@@ -53,16 +66,17 @@ class XlsxStreamWriter {
     let c = 0;
     ts._transform = (data, encoding, callback) => {
       if (c === 0) {
-        ts.push(xmlParts.sheetHeader);
+        ts.push(xmlParts.sheetHeader, "utf8");
       }
       const rowXml = this._getRowXml(data, c);
-      ts.push(rowXml);
+      // console.log(rowXml);
+      ts.push(rowXml.toString(), "utf8");
       c++;
       callback();
     };
 
     ts._flush = cb => {
-      ts.push(xmlParts.sheetFooter);
+      ts.push(xmlParts.sheetFooter, "utf8");
       cb();
     };
     return ts;
@@ -90,8 +104,9 @@ class XlsxStreamWriter {
 
   _getStringCellXml(value, address) {
     const stringValue = String(value);
+    // console.log(value, stringValue);
     return this.options.inlineStrings
-      ? xmlParts.getInlineStringCellXml(escapeXml(stringValue), address)
+      ? xmlParts.getInlineStringCellXml(escapeXml(String(value)), address)
       : xmlParts.getStringCellXml(this._lookupString(stringValue), address);
   }
 

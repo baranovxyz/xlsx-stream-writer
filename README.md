@@ -1,3 +1,11 @@
+---
+Right now this package is used as a quick way to generate very large but very simple 
+excel xlsx files. No formatting yet, no date conversions etc.
+
+Creating an xlsx blob in browser for 150000 rows x 80 columns of different data takes 
+around 60 seconds.
+
+---
 This was rewritten from coffee script https://github.com/rubenv/node-xlsx-writer and 
 changed to work both in browser and nodejs. Api is completely different from rubenv 
 implementation.
