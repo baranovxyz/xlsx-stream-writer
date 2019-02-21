@@ -3,11 +3,14 @@ const PassThrough = require("stream-browserify").PassThrough;
 const JSZip = require("jszip");
 const xmlParts = require("./xml/parts");
 const xmlBlobs = require("./xml/blobs");
-const { getCellAddress, wrapRowsInStream } = require("./helpers");
+const { getCellAddress, wrapRowsInStream, escapeXml } = require("./helpers");
+const getStyles = require('./styles').getStyles;
 // const { crc32 } = require("crc");
 
 const defaultOptions = {
   inlineStrings: false,
+  styles: [],
+  styleIdFunc: (value, columnId, rowId) => 0,
 };
 
 class XlsxStreamWriter {
@@ -24,7 +27,8 @@ class XlsxStreamWriter {
       "[Content_Types].xml": cleanUpXml(xmlBlobs.contentTypes),
       "_rels/.rels": cleanUpXml(xmlBlobs.rels),
       "xl/workbook.xml": cleanUpXml(xmlBlobs.workbook),
-      "xl/styles.xml": cleanUpXml(xmlBlobs.styles),
+      // "xl/styles.xml": cleanUpXml(xmlBlobs.styles),
+      "xl/styles.xml": cleanUpXml(getStyles(this.options.styles)),
       "xl/_rels/workbook.xml.rels": cleanUpXml(xmlBlobs.workbookRels),
     };
   }
@@ -86,28 +90,29 @@ class XlsxStreamWriter {
     let rowXml = xmlParts.getRowStart(rowIndex);
     row.forEach((cellValue, colIndex) => {
       const cellAddress = getCellAddress(rowIndex + 1, colIndex + 1);
-      rowXml += this._getCellXml(cellValue, cellAddress);
+      const styleId = this.options.styleIdFunc(cellValue, colIndex, rowIndex);
+      rowXml += this._getCellXml(cellValue, cellAddress, styleId);
     });
     rowXml += xmlParts.rowEnd;
     return rowXml;
   }
 
-  _getCellXml(value, address) {
+  _getCellXml(value, address, styleId = 0) {
     let cellXml;
     if (Number.isNaN(value) || value === null || typeof value === "undefined")
-      cellXml = xmlParts.getStringCellXml("", address);
+      cellXml = xmlParts.getStringCellXml("", address, styleId);
     else if (typeof value === "number")
-      cellXml = xmlParts.getNumberCellXml(value, address);
-    else cellXml = this._getStringCellXml(value, address);
+      cellXml = xmlParts.getNumberCellXml(value, address, styleId);
+    else cellXml = this._getStringCellXml(value, address, styleId);
     return cellXml;
   }
 
-  _getStringCellXml(value, address) {
+  _getStringCellXml(value, address, styleId) {
     const stringValue = String(value);
     // console.log(value, stringValue);
     return this.options.inlineStrings
-      ? xmlParts.getInlineStringCellXml(escapeXml(String(value)), address)
-      : xmlParts.getStringCellXml(this._lookupString(stringValue), address);
+      ? xmlParts.getInlineStringCellXml(escapeXml(String(value)), address, styleId)
+      : xmlParts.getStringCellXml(this._lookupString(stringValue), address, styleId);
   }
 
   _lookupString(value) {
@@ -206,13 +211,6 @@ class XlsxStreamWriter {
 
 function cleanUpXml(xml) {
   return xml.replace(/>\s+</g, "><").trim();
-}
-
-function escapeXml(str = "") {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 module.exports = XlsxStreamWriter;

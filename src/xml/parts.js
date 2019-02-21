@@ -3,13 +3,17 @@ const replaceReSec = />\s+</g;
 
 const getRowStart = row => `<row r="${row + 1}">`;
 const rowEnd = "</row>";
-const getStringCellXml = (index, cell) =>
-  `<c r="${cell}" t="s"><v>${index}</v></c>`;
-const getInlineStringCellXml = (s, cell) => `<c r="${cell}" t="inlineStr"><is><t>${s}</t></is></c>`;
-// const getSharedStringXml = s => `<si><t>${s}</t></si>`;
 
-const getNumberCellXml = (value, cell) =>
-  `<c r="${cell}" t="n"><v>${value}</v></c>`;
+const $s = styleId => (styleId === 0 ? "" : ' s="' + styleId + '"');
+
+const getStringCellXml = (index, cell, styleId = 0) =>
+  `<c r="${cell}" t="s"${$s(styleId)}><v>${index}</v></c>`;
+
+const getInlineStringCellXml = (s, cell, styleId = 0) =>
+  `<c r="${cell}" t="inlineStr"${$s(styleId)}><is><t>${s}</t></is></c>`;
+
+const getNumberCellXml = (value, cell, styleId = 0) =>
+  `<c r="${cell}" t="n"${$s(styleId)}><v>${value}</v></c>`;
 
 const sheetHeader = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <worksheet

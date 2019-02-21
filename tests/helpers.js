@@ -1,6 +1,6 @@
 const rows = [
   ["Name", "Location"],
-  ["Иван", "Москва"],
+  // ["Иван", "Москва"],
   ["Alpha", "Adams"],
   ["Bravo", "Boston"],
   ["Charlie", "Chicago"],

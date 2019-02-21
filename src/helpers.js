@@ -41,8 +41,26 @@ function wrapRowsInStream(rows) {
   return rs;
 }
 
+function escapeXml(str = "") {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeXmlExtended(str = "") {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 module.exports = {
   getCellAddress,
   wrapRowsInStream,
   getXmlFromXmlStream,
+  escapeXml,
+  escapeXmlExtended,
 };
