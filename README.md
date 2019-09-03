@@ -1,29 +1,30 @@
 ---
-Right now this package is used as a quick way to generate very large but very simple 
-excel xlsx files. No formatting yet, no date conversions etc.
+Right now this package is used as a quick way to generate very large excel xlsx files with simple formatting. No date conversions etc.
 
-Creating an xlsx blob in browser for 150000 rows x 80 columns of different data takes 
+Creating an xlsx blob in browser for 150000 rows x 80 columns of different data takes
 around 60 seconds.
-
 ---
-This was rewritten from coffee script https://github.com/rubenv/node-xlsx-writer and 
-changed to work both in browser and nodejs. Api is completely different from rubenv 
+
+This was rewritten from coffee script https://github.com/rubenv/node-xlsx-writer and
+changed to work both in browser and nodejs. Api is completely different from rubenv
 implementation.
 
 It is actually capable of streaming rows into xlsx file both in browser and nodejs.
 
-It uses JSZip to compress resulting structure. Lucky for us JSZip is capable of 
+It uses JSZip to compress resulting structure. Lucky for us JSZip is capable of
 processing readable streams, so we just stream rows into xlxs file (which is a zip file).
 
 Plans:
-- improve api
-- add tests
-- make browser build, put on some cdn
-- optimize shared string stuff
-- (maybe) use web workers to build xlsx in browser
-- (maybe) implement some specifis for nodejs
+
+- [ ] improve api
+- [x] add tests
+- [ ] make browser build, put on some cdn
+- [ ] optimize shared string stuff
+- [ ] maybe use web workers to build xlsx in browser
+- [ ] maybe implement some specifis for nodejs
 
 You can add rows:
+
 ```javascript
 const XlsxStreamWriter = require("xlsx-stream-writer");
 const fs = require("fs");
@@ -32,7 +33,7 @@ const rows = [
   ["Name", "Location"],
   ["Alpha", "Adams"],
   ["Bravo", "Boston"],
-  ["Charlie", "Chicago"],
+  ["Charlie", "Chicago"]
 ];
 
 const xlsx = new XlsxStreamWriter();
@@ -44,6 +45,7 @@ xlsx.getFile().then(buffer => {
 ```
 
 Or add readable stream of rows:
+
 ```javascript
 const XlsxStreamWriter = require("xlsx-stream-writer");
 const Readable = require("stream-browserify").Readable;
@@ -53,7 +55,7 @@ const rows = [
   ["Name", "Location"],
   ["Alpha", "Adams"],
   ["Bravo", "Boston"],
-  ["Charlie", "Chicago"],
+  ["Charlie", "Chicago"]
 ];
 
 function wrapRowsInStream(rows) {
