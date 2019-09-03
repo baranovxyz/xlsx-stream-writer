@@ -4,13 +4,13 @@ const JSZip = require("jszip");
 const xmlParts = require("./xml/parts");
 const xmlBlobs = require("./xml/blobs");
 const { getCellAddress, wrapRowsInStream, escapeXml } = require("./helpers");
-const getStyles = require('./styles').getStyles;
+const getStyles = require("./styles").getStyles;
 // const { crc32 } = require("crc");
 
 const defaultOptions = {
   inlineStrings: false,
   styles: [],
-  styleIdFunc: (value, columnId, rowId) => 0,
+  styleIdFunc: (value, columnId, rowId) => 0
 };
 
 class XlsxStreamWriter {
@@ -29,7 +29,7 @@ class XlsxStreamWriter {
       "xl/workbook.xml": cleanUpXml(xmlBlobs.workbook),
       // "xl/styles.xml": cleanUpXml(xmlBlobs.styles),
       "xl/styles.xml": cleanUpXml(getStyles(this.options.styles)),
-      "xl/_rels/workbook.xml.rels": cleanUpXml(xmlBlobs.workbookRels),
+      "xl/_rels/workbook.xml.rels": cleanUpXml(xmlBlobs.workbookRels)
     };
   }
 
@@ -45,7 +45,7 @@ class XlsxStreamWriter {
       rowsStream = wrapRowsInStream(rowsOrStream);
     else
       throw Error(
-        "Argument must be an array of arrays or a readable stream of arrays",
+        "Argument must be an array of arrays or a readable stream of arrays"
       );
     const rowsToXml = this._getRowsToXmlTransformStream();
     const tsToString = this._getToStringTransforStream();
@@ -111,8 +111,16 @@ class XlsxStreamWriter {
     const stringValue = String(value);
     // console.log(value, stringValue);
     return this.options.inlineStrings
-      ? xmlParts.getInlineStringCellXml(escapeXml(String(value)), address, styleId)
-      : xmlParts.getStringCellXml(this._lookupString(stringValue), address, styleId);
+      ? xmlParts.getInlineStringCellXml(
+          escapeXml(String(value)),
+          address,
+          styleId
+        )
+      : xmlParts.getStringCellXml(
+          this._lookupString(stringValue),
+          address,
+          styleId
+        );
   }
 
   _lookupString(value) {
@@ -137,8 +145,8 @@ class XlsxStreamWriter {
       } else
         rs.push(
           xmlParts.getSharedStringXml(
-            escapeXml(String(this.sharedStringsArr[c])),
-          ),
+            escapeXml(String(this.sharedStringsArr[c]))
+          )
         );
       c++;
     };
@@ -174,9 +182,9 @@ class XlsxStreamWriter {
             type: "blob",
             compression: "DEFLATE",
             compressionOptions: {
-              level: 4,
+              level: 4
             },
-            streamFiles: true,
+            streamFiles: true
           })
           .then(resolve)
           .catch(reject);
@@ -187,9 +195,9 @@ class XlsxStreamWriter {
             platform: process.platform,
             compression: "DEFLATE",
             compressionOptions: {
-              level: 4,
+              level: 4
             },
-            streamFiles: true,
+            streamFiles: true
           })
           .then(resolve)
           .catch(reject);

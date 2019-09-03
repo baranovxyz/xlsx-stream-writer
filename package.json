@@ -9,7 +9,6 @@
   "author": "Valery Baranov <valery@baranov.xyz> (http://baranov.xyz)",
   "license": "MIT",
   "dependencies": {
-    "crc": "^3.8.0",
     "jszip": "^3.1.5",
     "stream-browserify": "^2.0.2"
   },
@@ -24,6 +23,7 @@
     "write"
   ],
   "devDependencies": {
-    "jest": "^23.6.0"
+    "crc": "^3.8.0",
+    "jest": "^25.0.0"
   }
 }
