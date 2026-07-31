@@ -126,7 +126,12 @@ const validated = (async () => {
 
   // One invocation for every fixture: restoring and building the validator
   // dominates, so per-file processes would cost far more than the validation.
-  const args = ["run", "--project", PROJECT, "-c", "Release", "--nologo", "--", ...files];
+  //
+  // Everything after `--` reaches the program as a file path, so nothing but a
+  // path may follow it. `dotnet run` forwards flags it does not recognise
+  // rather than rejecting them, so a stray `--nologo` arrives as a filename and
+  // reports itself as an unopenable workbook.
+  const args = ["run", "--project", PROJECT, "-c", "Release", "--", ...files];
 
   let stdout;
   let failures = 0;
@@ -174,6 +179,16 @@ test("every generated workbook conforms to the Open XML schema", { timeout: 6000
     0,
     `Microsoft's Open XML validator rejected ${result.failures} workbook(s). ` +
       `Unlike Excel, it says exactly what is wrong:\n\n${result.stdout}`,
+  );
+
+  // The validator counts what it was handed, so a count that disagrees with the
+  // fixture list means the argument vector did — an extra flag arriving as a
+  // filename, or a fixture silently not reaching it.
+  assert.match(
+    result.stdout,
+    new RegExp(`^${FIXTURES.length} file\\(s\\) conform to the Office2007 schema$`, "m"),
+    `The validator did not report exactly ${FIXTURES.length} files, so it was not ` +
+      `handed what this test thinks it was:\n\n${result.stdout}`,
   );
 
   // A pass that validated nothing would be indistinguishable from a real pass.
