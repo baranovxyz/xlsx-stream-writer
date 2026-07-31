@@ -17,30 +17,14 @@ updates:
     commit-message:
       prefix: ci
 
-  # The next two entries watch the 0.2.x maintenance line, which ships jszip and
-  # stream-browserify where master ships nothing. `target-branch` covers one
-  # branch per entry, so a second branch means repeating the ecosystem and every
-  # option alongside it.
+  # Nothing watches the 0.2.x branch, on purpose. It is frozen: no proactive
+  # dependency work, but it can still publish a patch if one is needed.
   #
-  # This buys version updates and nothing else. Security updates always run
-  # against the default branch whatever `target-branch` says, so an advisory
-  # against jszip opens a pull request against master — which does not depend on
-  # it — and none here. That is why docs/RELEASING.md still says to run
-  # `npm audit` against 0.2.x by hand before a maintenance release.
-  - package-ecosystem: npm
-    directory: /
-    target-branch: "0.2.x"
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: deps
-
-  # 0.2.x carries its own ci.yml and publish.yml, with their own SHA pins.
-  - package-ecosystem: github-actions
-    directory: /
-    target-branch: "0.2.x"
-    schedule:
-      interval: weekly
-    commit-message:
-      prefix: ci
+  # `target-branch` entries were tried and removed. They would only ever have
+  # opened version-update pull requests — security updates always run against
+  # the default branch whatever `target-branch` says — and a frozen branch has
+  # nobody to review a weekly bump of a dependency it is not shipping a release
+  # of. The traffic would be indistinguishable from the traffic that matters.
+  #
+  # What replaces them is a step at release time rather than a subscription:
+  # docs/RELEASING.md, "The 0.2 maintenance line".

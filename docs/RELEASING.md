@@ -78,20 +78,30 @@ The publish workflow runs from that branch and gives any version below the
 current `latest` the `legacy` dist-tag, so a maintenance release cannot become
 the default install. Check `npm view xlsx-stream-writer dist-tags` afterwards.
 
-**Dependabot watches this branch for version updates only.** A second pair of
-`updates` entries in `.github/dependabot.yml` carries `target-branch: "0.2.x"`;
-the option covers one branch per entry, so each ecosystem needs its own. They
-pick up new releases of `jszip` and `stream-browserify`, and the action pins in
-this branch's own `ci.yml` and `publish.yml`.
+**The branch is frozen, not retired.** Nothing watches it — no Dependabot, no
+scheduled anything — and no dependency work happens on it speculatively. It can
+still publish a `0.2.z` when one is warranted by the paragraph above.
 
-They do not pick up advisories, and no configuration can. Dependabot security
-updates always run against the default branch whatever `target-branch` says, so
-an advisory against `jszip` opens a pull request against `master` — which does
-not depend on it — and none here. The branch shipping runtime dependencies to
-projects that by definition cannot upgrade away from a problem is still the one
-with no automatic advisory signal, so run `npm audit` against `0.2.x` by hand
-before every maintenance release. At 0.2.7 that tree is fifteen packages and
-reports nothing.
+Dependabot entries with `target-branch: "0.2.x"` were tried and removed. They
+could only ever have opened version-update pull requests, because security
+updates always run against the default branch whatever `target-branch` says: an
+advisory against `jszip` opens a pull request against `master`, which does not
+depend on it, and none here. So the entries offered weekly bumps of a
+dependency nobody was preparing a release of, and no advisory signal — traffic
+that would train a reviewer to ignore the queue that does matter.
+
+Because nothing is maintained between releases, a release starts by catching
+the branch up. Expect both of these:
+
+- **Advisories are unchecked.** Run `npm audit` against `0.2.x` by hand. At
+  0.2.7 that tree is fifteen packages and reports nothing, so anything it says
+  is new.
+- **The action pins have rotted.** That branch carries its own `ci.yml` and
+  `publish.yml`, pinned by SHA. Pinned actions keep running until GitHub
+  retires the runtime under them, and then they stop — so the longer the freeze,
+  the likelier the pipeline needs its actions bumped before it will run at all.
+  Bump them as the first commit of the release, which is where pipeline changes
+  belong anyway; see "Changing the pipeline itself".
 
 ## Deprecating a published version
 
