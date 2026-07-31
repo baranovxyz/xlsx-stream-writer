@@ -55,6 +55,13 @@ list or starting a pass of your own.
   first** — cell values, style attributes, and the numbers a caller's callback
   returns. An unvalidated value can close its attribute and open another.
 
+- **Pin actions to a SHA and comment the *full* version.** `# v4.3.1`, never
+  `# v4`. Dependabot rewrites a comment that spells out the version and leaves a
+  major-only one alone, so the bump lands and the comment quietly goes on
+  claiming the old major. That already happened once: a `checkout` pin read
+  `# v4` while pointing at v7.0.1. The SHA is what runs, so this misleads a
+  reader rather than the runner — which is why nothing catches it.
+
 - **No literal control characters in source files.** Write `\uXXXX` escapes, even
   inside test fixtures. Literal ones make tools treat the file as binary.
 
