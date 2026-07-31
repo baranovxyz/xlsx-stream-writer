@@ -280,18 +280,18 @@ jobs:
         run: |
           PUBLISHED_INTEGRITY=""
           ATTESTATION_URL=""
-          for ATTEMPT in 1 2 3 4 5 6; do
+          for ATTEMPT in $(seq 1 12); do
             set +e
             PUBLISHED_INTEGRITY=$(npm view "$PACKAGE" dist.integrity 2>"$RUNNER_TEMP/integrity.err")
             ATTESTATION_URL=$(npm view "$PACKAGE" dist.attestations.url 2>"$RUNNER_TEMP/attestation.err")
             set -e
             if [[ -n "$PUBLISHED_INTEGRITY" && -n "$ATTESTATION_URL" ]]; then break; fi
-            if [[ "$ATTEMPT" -eq 6 ]]; then
+            if [[ "$ATTEMPT" -eq 12 ]]; then
               cat "$RUNNER_TEMP/integrity.err" "$RUNNER_TEMP/attestation.err" >&2
-              echo "::error::$PACKAGE registry metadata did not become available after 6 attempts"
+              echo "::error::$PACKAGE registry metadata did not become available after 12 attempts"
               exit 1
             fi
-            sleep 5
+            sleep 10
           done
           if [[ "$PUBLISHED_INTEGRITY" != "$EXPECTED_INTEGRITY" ]]; then
             echo "::error::$PACKAGE integrity does not match the tested release candidate"
@@ -302,7 +302,7 @@ jobs:
             const assertShape = (ok, message) => { if (!ok) throw new Error(message); };
             (async () => {
               let document;
-              for (let attempt = 1; attempt <= 6; attempt++) {
+              for (let attempt = 1; attempt <= 12; attempt++) {
                 try {
                   const response = await fetch(process.env.ATTESTATION_URL);
                   if (response.ok) {
@@ -312,9 +312,9 @@ jobs:
                 } catch {
                   // Bounded retry below; the final attempt still fails closed.
                 }
-                if (attempt < 6) await new Promise((resolve) => setTimeout(resolve, 5000));
+                if (attempt < 12) await new Promise((resolve) => setTimeout(resolve, 10000));
               }
-              assertShape(document, "SLSA provenance attestation was unavailable after 6 attempts");
+              assertShape(document, "SLSA provenance attestation was unavailable after 12 attempts");
 
               const attestation = document.attestations.find(
                 (entry) => entry?.predicateType === "https://slsa.dev/provenance/v1",
