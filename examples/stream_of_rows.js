@@ -1,18 +1,16 @@
+// Rows from a generator, written with getFile().
 const XlsxStreamWriter = require("../src/xlsx-stream-writer");
-const { wrapRowsInStream } = require("../src/helpers");
 const fs = require("fs");
 
-const rows = [
-  ["Name", "Location"],
-  ["Alpha", "Adams"],
-  ["Bravo", "Boston"],
-  ["Charlie", "Chicago"],
-];
-
-const streamOfRows = wrapRowsInStream(rows);
+function* generateRows() {
+  yield ["Name", "Location"];
+  yield ["Alpha", "Adams"];
+  yield ["Bravo", "Boston"];
+  yield ["Charlie", "Chicago"];
+}
 
 const xlsx = new XlsxStreamWriter();
-xlsx.addRows(streamOfRows);
+xlsx.addRows(generateRows());
 
 xlsx.getFile().then(buffer => {
   fs.writeFileSync("result.xlsx", buffer);

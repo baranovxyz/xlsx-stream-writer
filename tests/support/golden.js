@@ -7,21 +7,20 @@
  * accident of refactoring.
  */
 
+// No directory entries: they are optional in ZIP, absent from the workbooks
+// Excel itself writes, and JSZip's habit of emitting them was the only reason
+// they used to be here.
 const ENTRY_NAMES = [
   "[Content_Types].xml",
-  "_rels/",
   "_rels/.rels",
-  "xl/",
   "xl/workbook.xml",
   "xl/styles.xml",
-  "xl/_rels/",
   "xl/_rels/workbook.xml.rels",
-  "xl/worksheets/",
   "xl/worksheets/sheet1.xml",
   "xl/sharedStrings.xml",
 ];
 
-const FILE_ENTRY_NAMES = ENTRY_NAMES.filter(name => !name.endsWith("/"));
+const FILE_ENTRY_NAMES = ENTRY_NAMES;
 
 const PARTS = {
   "[Content_Types].xml":
