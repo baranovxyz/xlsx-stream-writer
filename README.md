@@ -22,6 +22,13 @@ Requires Node.js 20.19 or newer. In the browser it needs `CompressionStream`
 (Chrome 80+, Firefox 113+, Safari 16.4+) and a bundler that honours the
 `browser` field, which is all of them.
 
+Projects that cannot take those requirements can stay on the 0.2 line, which
+carries the same corruption fixes and keeps the old behaviour:
+
+```sh
+npm install xlsx-stream-writer@legacy
+```
+
 ## Rows from an array
 
 ```javascript
@@ -151,14 +158,17 @@ same rows always produce the same bytes.
 
 ## Plans
 
-- [ ] improve api
-- [x] add tests
-- [x] replace JSZip with a built-in zip writer, so the package has no runtime dependencies
-- [x] ship TypeScript sources and type declarations
-- [ ] make browser build, put on some cdn
-- [ ] optimize shared string stuff
-- [ ] maybe use web workers to build xlsx in browser
-- [ ] maybe implement some specifis for nodejs
+Shipped items live in the [changelog](CHANGELOG.md); what is left:
+
+- **A prebuilt browser bundle on a CDN.** The package works through any bundler
+  today, but there is nothing to drop into a `<script>` tag.
+- **A smaller shared-string table.** It is the memory ceiling on large exports —
+  500k rows peak around 240 MB with it and 120 MB with `inlineStrings`. Worth
+  either a cheaper structure or spilling it once it outgrows a threshold.
+- **Multiple sheets.** The most common request the current one-sheet shape
+  cannot answer.
+- **Column widths and a frozen header row.** Small, and the two bits of
+  formatting people ask for immediately after the data lands.
 
 ## TypeScript
 

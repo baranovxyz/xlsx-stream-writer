@@ -35,6 +35,24 @@ to be true before it will work.
 3. **Remove any `NPM_TOKEN` secret.** Trusted publishing makes it unnecessary,
    and a lingering token is a credential to steal.
 
+## The 0.2 maintenance line
+
+`^0.2.6` resolves to `>=0.2.6 <0.3.0`, so nothing on the 1.x line ever reaches a
+project pinned to the old range. The `0.2.x` branch exists to serve those
+projects, and a release from it must be a `0.2.z` patch — a `0.3.0` would not
+reach them either.
+
+Only backport fixes for input that was already producing a wrong or unopenable
+file. Anything that changes the output of input that previously worked belongs
+to 1.x, however much more correct it is. Verify by generating a mixed-type
+workbook with both versions and diffing cell by cell; every difference should be
+one you can name.
+
+The publish workflow runs from that branch and gives any version below the
+current `latest` the `legacy` dist-tag, so a maintenance release cannot become
+the default install. Check `npm view xlsx-stream-writer dist-tags` afterwards.
+
+
 ## Cutting a release
 
 1. On a branch off `master`, in one commit:

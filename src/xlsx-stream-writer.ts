@@ -57,6 +57,7 @@ class XlsxStreamWriter {
   private rows: AsyncIterable<Row> | null = null;
   private rowsAdded = false;
   private consumed = false;
+  private sheetComplete = false;
   private sharedStringRefs = 0;
   private sheetStream: ReadableStream<string> | null = null;
   private sharedStringsStream: ReadableStream<string> | null = null;
@@ -129,10 +130,20 @@ class XlsxStreamWriter {
       yield this.getRowXml(row, rowIndex);
       rowIndex++;
     }
+    this.sheetComplete = true;
     yield xmlParts.sheetFooter;
   }
 
   private async *sharedStringsXml(): AsyncGenerator<string> {
+    // The table is filled as the sheet is walked, so emitting it early would
+    // declare a count of zero and list nothing — a valid-looking part that is
+    // quietly wrong. The archive writer never trips this, because it consumes
+    // entries in order.
+    if (!this.sheetComplete) {
+      throw new Error(
+        "the shared-string table is only complete once the worksheet has been read — drain sheetXmlStream first",
+      );
+    }
     yield xmlParts.getSharedStringsHeader(this.sharedStringsArr.length, this.sharedStringRefs);
     for (const value of this.sharedStringsArr) {
       yield xmlParts.getSharedStringXml(escapeXml(String(value)));
@@ -183,8 +194,10 @@ class XlsxStreamWriter {
   ): number {
     const styleId = this.options.styleIdFunc(value, colIndex, rowIndex);
     if (!Number.isInteger(styleId) || (styleId as number) < 0) {
+      // Name the type too: a boxed Number or a numeric string prints like a
+      // perfectly good index, which makes the bare value baffling on its own.
       throw new TypeError(
-        `styleIdFunc returned ${JSON.stringify(styleId)} for cell ${address}; it must return a non-negative integer`,
+        `styleIdFunc returned ${JSON.stringify(styleId)} (${typeof styleId}) for cell ${address}; it must return a non-negative integer`,
       );
     }
     if (styleId >= this.styleCount) {
