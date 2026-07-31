@@ -35,6 +35,12 @@ worked belongs on `master` alone. See [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Conventions not enforced by tooling
 
+Most of these are findings from an adversarial review pass, kept so the next pass
+starts somewhere new. Two have run, both shipped a release, and none of what they
+found was a crash — see
+[docs/adversarial-review.md](docs/adversarial-review.md) before adding to this
+list or starting a pass of your own.
+
 - **Never key a lookup table by a caller-supplied string using a plain object.**
   Use a `Map`. Strings that name a member of `Object.prototype` resolve to the
   inherited member instead of missing, and that value then gets written into the
@@ -68,6 +74,10 @@ worked belongs on `master` alone. See [docs/RELEASING.md](docs/RELEASING.md).
 - **[docs/verifying-output.md](docs/verifying-output.md)** — how output
   correctness is actually established, and what remains unverified. Read before
   treating a green suite as proof that a workbook opens.
+- **[docs/adversarial-review.md](docs/adversarial-review.md)** — the pass that
+  hunts for output that is plausible and wrong, what the two previous ones found,
+  and the bug shapes that keep recurring. Read before a release that changes
+  behaviour, or when a green suite feels like weaker evidence than it looks.
 - **[docs/migrating-to-1.x.md](docs/migrating-to-1.x.md)** — the 0.2.x → 1.x
   migration, written to be followed mechanically. Read when a caller reports
   breakage after upgrading, or when changing anything it documents as stable.
