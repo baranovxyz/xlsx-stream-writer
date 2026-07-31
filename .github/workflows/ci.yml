@@ -30,6 +30,32 @@ jobs:
       - name: Preview npm tarball contents
         run: npm pack --dry-run
 
+  # The rest of the suite proves the archive is well-formed and the XML parses.
+  # Only this job proves a spreadsheet application will open the result. It runs
+  # once rather than across the matrix: the reader is what is under test here,
+  # and it does not vary with the Node version.
+  spreadsheet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      # libreoffice-calc, not libreoffice: without the spreadsheet component
+      # every conversion fails with a generic error that reads like a corrupt
+      # workbook. See docs/verifying-output.md.
+      - name: Install LibreOffice Calc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-calc
+      - run: npm ci --ignore-scripts
+      # Without this the spreadsheet checks skip silently when LibreOffice is
+      # missing, which is right on a contributor's machine and would make this
+      # job pass while verifying nothing.
+      - run: npm test
+        env:
+          XLSX_REQUIRE_SPREADSHEET: "1"
+
   audit:
     runs-on: ubuntu-latest
     steps:
