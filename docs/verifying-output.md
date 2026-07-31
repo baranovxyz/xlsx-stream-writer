@@ -61,17 +61,51 @@ so that path is exercised with small fixtures instead of multi-megabyte ones —
 and separately, once, with a workbook genuinely large enough to cross the real
 threshold.
 
+## What a spreadsheet application has actually read
+
+Everything above establishes that the archive is well-formed and that the XML
+parses. None of it proves a spreadsheet application is happy, so that is checked
+separately, by `tests/archive/spreadsheet.test.js`.
+
+It builds four workbooks, has LibreOffice convert them headless to CSV, and
+compares every cell against what was written:
+
+- **Both string paths** — the shared table and inline strings — must round-trip
+  exactly, Cyrillic included.
+- **A sheet in the streamed entry shape**: 120 000 rows, past the writer's
+  buffering limit, so the local header sizes are zero and the real sizes trail
+  the data. The test asserts that shape before reading, so the archive form most
+  likely to be rejected is provably the one being read.
+- **A fixture of values chosen to break readers**: XML metacharacters, a string
+  that tries to close its attribute and open an element, `__proto__` /
+  `constructor` / `toString` / `valueOf` / `hasOwnProperty` as cell values,
+  formula- and DDE-shaped strings, leading and trailing whitespace, emoji, RTL,
+  combining marks, CJK, a 32 767-character string, and numeric and boolean edge
+  cases. Formula-shaped strings must come back as text rather than evaluated,
+  and the `Object.prototype` names as themselves.
+
+First run, on 2026-07-31 against 1.3.0 with LibreOffice Calc 24.2.7.2: every
+cell round-tripped, and separately a 500 000-row workbook converted with all
+500 000 rows intact. No file triggered a repair prompt.
+
+These checks **skip silently when LibreOffice is absent**, so the suite stays
+portable — which also means they pass while asserting nothing. CI installs
+`libreoffice-calc` and sets `XLSX_REQUIRE_SPREADSHEET=1`, which turns a missing
+LibreOffice into a failure, so a runner that loses it cannot go quietly green.
+Set it locally to prove the checks are really running.
+
+Note that a LibreOffice installation without its spreadsheet component will fail
+to load *any* spreadsheet — including a plain CSV — with a generic "source file
+could not be loaded". That failure looks like a broken file and is not; install
+`libreoffice-calc` specifically, not `libreoffice`, before concluding anything
+about the output.
+
 ## What is still unverified
 
-**No workbook produced by this package has been opened in Excel or LibreOffice
-during its hardening.** Everything above establishes that the archive is
-well-formed and that the XML parses; none of it proves Excel is happy.
+**Real Excel.** LibreOffice is a proxy, not the thing itself; it is more
+tolerant than Excel in places. Before relying on a release, open a generated
+workbook in real Excel once.
 
-LibreOffice is the practical proxy, via a headless conversion. Note that a
-LibreOffice installation without its spreadsheet component will fail to load
-*any* spreadsheet — including a plain CSV — with a generic "source file could
-not be loaded". That failure looks like a broken file and is not; check that the
-spreadsheet component is actually installed before concluding anything about the
-output.
-
-Before relying on a release, open a generated workbook in real Excel once.
+Nothing here covers styling beyond what the examples exercise, and the CSV proxy
+flattens formatting by design — a value that reads back correctly says nothing
+about how it is displayed.
