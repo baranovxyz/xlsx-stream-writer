@@ -37,7 +37,8 @@ releases should have carried.
 ### Also on npm
 
 `0.2.7` ships the corruption fixes to the 0.2 line under the `legacy` dist-tag,
-for projects on `^0.2.6` that cannot take the 1.x requirements.
+for projects on `^0.2.6` that cannot take the 1.x requirements. Its own entry
+below records what changed.
 
 ## 1.2.0 — 2026-07-31
 
@@ -199,8 +200,50 @@ previously produced a corrupt workbook, a wrong one, or a hang.
 
 ## 0.2.7 — 2026-07-31
 
-Security and tooling only. No API or output changes: the generated workbook is
-byte-for-byte identical to 0.2.6.
+Published from the `0.2.x` branch under the `legacy` dist-tag, for projects on
+`^0.2.6` that cannot take the 1.x requirements. It carries the corruption fixes
+backported from 1.x as well as the security and tooling work below.
+
+**This entry has been corrected.** It first read "Security and tooling only. No
+API or output changes: the generated workbook is byte-for-byte identical to
+0.2.6." The backport landed in the same version before 0.2.7 was published, so
+that never described the release actually on the registry: every fix below
+changes the output of the input that was hitting it. The `engines.node` floor
+the entry announced went the same way — the published 0.2.7 declares none.
+
+### Fixed
+
+- **A cell holding the string `"constructor"` corrupted the whole workbook.**
+  The shared-string table was a plain object, so values naming a member of
+  `Object.prototype` — `constructor`, `toString`, `valueOf`, `hasOwnProperty`,
+  `__proto__` — found the inherited member instead of missing. The sheet
+  referenced `<v>function Object() { [native code] }</v>` where an index
+  belonged, and the string table came out empty. Present in every release up to
+  and including 0.2.6.
+- The same collision applied to style `format` and `fill` values, producing a
+  `numFmtId` or `fillId` that was a stringified function.
+- **Styles leaked between writers.** `getStyles` appended to module-level
+  arrays, so the second workbook built in a process inherited the first one's
+  fills and every style id after the first pointed at the wrong entry.
+- **Options leaked between writers.** The constructor merged into the shared
+  defaults object, so a later `new XlsxStreamWriter()` could inherit an earlier
+  writer's `inlineStrings` and `styles`.
+- **Source-stream errors hung forever.** `.pipe()` does not forward errors, so a
+  failing source left `getFile()` pending indefinitely. It now rejects.
+- **Illegal XML characters corrupted the file.** Control characters were
+  written raw, producing a workbook Excel refuses to open. They are now
+  removed; tab, newline and carriage return are kept.
+- **Blank cells were written as broken shared-string references.** `null`,
+  `undefined` and `NaN` produced `t="s"` with an empty `<v>`, a reference to
+  nothing. They are now genuinely blank cells.
+- **`Infinity` was written literally**, which Excel treats as damaged content.
+  Non-finite numbers are now blank.
+- **An empty row set produced a malformed sheet** — the worksheet part was
+  written without its header.
+- Rows beyond 1 048 576, and rows wider than 16 384 cells, now raise with the
+  offending row number instead of producing a file Excel will not open.
+- `sst/@count` reported the distinct string count; it now reports the number of
+  cells referencing the table.
 
 ### Security
 
@@ -230,17 +273,27 @@ byte-for-byte identical to 0.2.6.
 
 ### Changed
 
+- `addRows` also accepts native `node:stream` readables, web `ReadableStream`s,
+  iterables and async iterables. An `instanceof` check against
+  `stream-browserify`'s class had rejected the stream type Node callers
+  actually have. Purely additive.
 - `npm test` runs once and exits, so it works in CI. Use `npm run test:watch`
   for the previous watching behaviour.
 - The published tarball now contains only `index.js`, `src/`, `README.md`,
   `CHANGELOG.md` and `LICENSE`. Previous releases also shipped `tests/`,
   `examples/` and the lockfile.
-- Declared `engines.node` as `>=20.19.0`.
 
 ### Removed
 
 - `examples/crc_speed_test.js`, a scratch benchmark that depended on the
   now-removed `crc` package and had a latent bug of its own.
+
+### Unchanged on purpose
+
+Booleans, dates, bigints and objects still go through `String()`. Writing them
+as typed cells is what 1.x does, but it changes the output of input that
+already worked, which a patch release must not do. The once-only `addRows` and
+`getFile` guards stayed on 1.x for the same reason.
 
 ## 0.2.6 and earlier
 
