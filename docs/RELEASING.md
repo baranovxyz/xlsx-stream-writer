@@ -18,6 +18,27 @@ to be true before it will work.
 - **Every version is published once.** `prepare` fails if the version already
   exists on the registry.
 
+## Changing the pipeline itself
+
+**CI does not run this workflow.** A pull request that edits `publish.yml` shows
+the same six green checks as any other, and not one of them executed a line of
+it — they all exercise `ci.yml`. Treat that green as silence, not evidence.
+
+Rehearsing an edit is harder than it looks, because two guards block the obvious
+approaches:
+
+- `prepare` runs only on `master` or a `*.x` branch, so dispatching the workflow
+  against a feature branch skips the entire graph.
+- The republish guard fails whenever the version in `package.json` is already on
+  the registry. It reads `dry-run` into the environment but does not branch on
+  it, so a dry run at the current version stops there too.
+
+Together those mean an edit here cannot be proven before it reaches `master`,
+and cannot be rehearsed on `master` at an already-published version. The first
+honest test is the dry run of the next real release. So land pipeline changes at
+the *start* of a release cycle, while there is still a version bump ahead of them
+to exercise the change — never as the last commit before publishing.
+
 ## One-time setup
 
 Already done for this package. This is here for a fresh fork or a rebuilt
@@ -54,6 +75,15 @@ one you can name.
 The publish workflow runs from that branch and gives any version below the
 current `latest` the `legacy` dist-tag, so a maintenance release cannot become
 the default install. Check `npm view xlsx-stream-writer dist-tags` afterwards.
+
+**Dependabot does not watch this branch.** `.github/dependabot.yml` declares no
+`target-branch`, so both ecosystems track the default branch only. The coverage
+is exactly inverted against the risk: `master` has zero runtime dependencies and
+is watched, while `0.2.x` ships `jszip` and `stream-browserify` to the projects
+that by definition cannot upgrade away from a problem, and is not. Advisories
+against those two will not open a pull request here — check them by hand before
+a maintenance release, or add a second pair of `updates` entries with
+`target-branch: "0.2.x"` and accept the pull request traffic.
 
 
 ## Cutting a release
