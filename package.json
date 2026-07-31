@@ -38,7 +38,7 @@
   "author": "Valery Baranov <valery@baranov.xyz> (http://baranov.xyz)",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.1.2",
     "jszip": "^3.10.1",
     "typescript": "^5.9.3"
   },
