@@ -22,7 +22,7 @@ not the sources**. Invoking the test runner directly exercises whatever was buil
 last, so a source edit followed by a bare runner invocation silently reports
 stale results. Always go through `npm test`.
 
-`master` is protected: pushes go through a pull request, all seven CI checks must
+`master` is protected: pushes go through a pull request, all eight CI checks must
 pass, and history stays linear. The repository allows **rebase merges only** —
 squash and merge commits are disabled, so every commit reaches `master` intact.
 Write commits worth keeping.
@@ -88,6 +88,15 @@ list or starting a pass of your own.
   prove the published declarations still resolve for a consumer on a classic
   tsconfig. TypeScript 7 removed that option, so taking it means giving up that
   assertion. Decide that on its merits, not because a pull request was green.
+
+- **A new CI job is not a required check until someone adds it by hand.**
+  Branch protection keeps its own list of check names and adding a job to
+  `ci.yml` does not touch it. The `schema` job shipped a whole release while the
+  required list still named six checks, so a schema failure would have merged
+  green. A matrix entry has the same problem — `test (26)` is a new check name,
+  not a variation on an existing one. Add the job, let the pull request report
+  the name GitHub actually uses, then require that exact string. Confirm with
+  `gh api repos/baranovxyz/xlsx-stream-writer/branches/master/protection`.
 
 - **No literal control characters in source files.** Write `\uXXXX` escapes, even
   inside test fixtures. Literal ones make tools treat the file as binary.
