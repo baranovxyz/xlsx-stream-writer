@@ -185,7 +185,15 @@ npm run build   # tsc only
 ```
 
 Tests run against the compiled `dist/`, so they exercise the artifact that
-actually ships. Releases are documented in [docs/RELEASING.md](docs/RELEASING.md).
+actually ships — go through `npm test` rather than the test runner directly, or
+you will be reading whatever was built last.
+
+- [AGENTS.md](AGENTS.md) — commands and the conventions tooling does not enforce
+- [docs/architecture.md](docs/architecture.md) — why the ZIP writer and stream
+  plumbing are shaped the way they are
+- [docs/verifying-output.md](docs/verifying-output.md) — how output correctness
+  is established
+- [docs/RELEASING.md](docs/RELEASING.md) — the release runbook
 
 ## Security
 
