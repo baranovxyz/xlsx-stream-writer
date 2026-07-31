@@ -20,6 +20,9 @@ to be true before it will work.
 
 ## One-time setup
 
+Already done for this package. This is here for a fresh fork or a rebuilt
+repository — do not redo it against the live package.
+
 1. **Configure the trusted publisher on npmjs.org.** Package
    `xlsx-stream-writer` → Settings → Trusted publisher → GitHub Actions:
 
@@ -88,31 +91,21 @@ the default install. Check `npm view xlsx-stream-writer dist-tags` afterwards.
   missing, or the trusted publisher entry does not match the repository,
   workflow path and environment exactly.
 - **`publish` succeeded but `verify` failed.** The package is live — npm cannot
-  be rolled back after 72 hours, and unpublishing a version burns it forever.
-  Investigate before republishing; in most cases the fix is a new patch version,
-  not an unpublish.
+  be rolled back after 72 hours, and unpublishing a version burns it forever, so
+  never reach for a republish first. Establish whether the release is actually
+  sound before doing anything.
+
+  The likeliest cause is timing: npm's attestation endpoint can lag the publish
+  by longer than the job is willing to wait, and the message says the
+  attestation was unavailable rather than wrong. Fetch it yourself a minute
+  later; if it is there, the release is fine and only the check was impatient.
+  Confirm the same four things the job does — the provenance subject digest
+  matches the tarball npm serves, the repository is this one, the workflow ref
+  and path are the ones that ran, and the resolved commit is the release commit.
+
+  A genuine mismatch in any of those is serious and means the artifact on the
+  registry is not the one that was built here. A timing failure is not, but it
+  leaves `tag-and-release` skipped, so create the tag and the GitHub release by
+  hand against the release commit.
 - **`tag-and-release` failed.** Cosmetic. Re-run the workflow, or create the tag
   and release by hand; the published artifact is unaffected.
-
-## Release order for the hardening work
-
-Each phase is independently releasable, and each is a real user-visible step:
-
-| Phase | Version | Content                                                |
-| ----- | ------- | ------------------------------------------------------ |
-| 0 + 1 | 0.2.7   | Advisories cleared, test harness, CI, release pipeline |
-| 2     | 0.3.0   | Correctness and robustness fixes                       |
-| 3     | 1.0.0   | Built-in ZIP writer, zero runtime dependencies         |
-| 5     | 1.1.0   | TypeScript sources and shipped type declarations       |
-
-Phase 4 (supply-chain hardening) landed early, alongside 0.2.7, so that every
-later phase publishes through the verified pipeline rather than by hand.
-
-All five are committed. Publishing any of them needs the one-time setup above:
-the trusted publisher entry on npmjs.org and the `npm` environment on GitHub.
-Neither exists yet, so no release has been published.
-
-If you would rather publish only the end state, release 1.1.0 and skip the
-intermediate versions — the changelog documents each step regardless. If you
-want the full history on npm, publish them in order, bumping `package.json` to
-each version on `master` in turn.
