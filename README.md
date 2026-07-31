@@ -1,3 +1,9 @@
+> **This is the 0.2 maintenance line.** It exists so that projects on `^0.2.6`
+> receive the corruption fixes without a migration. New work should use
+> [1.x](https://www.npmjs.com/package/xlsx-stream-writer), which has no runtime
+> dependencies, typed date and boolean cells, TypeScript declarations and a
+> streaming output API — and which requires Node 20.19+.
+
 ---
 Right now this package is used as a quick way to generate very large excel xlsx files with simple formatting. No date conversions etc.
 

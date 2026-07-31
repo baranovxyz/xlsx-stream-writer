@@ -10,9 +10,6 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
-  "engines": {
-    "node": ">=20.19.0"
-  },
   "scripts": {
     "test": "node --test",
     "test:watch": "node --test --watch",

@@ -10,8 +10,8 @@ name: Publish to npm
 # Trusted publisher -> GitHub Actions -> baranovxyz/xlsx-stream-writer ->
 # workflow `.github/workflows/publish.yml`, environment `npm`.
 #
-# npm provenance requires the source repository to be PUBLIC. While the repo is
-# private, `npm publish --provenance` fails; see docs/RELEASING.md.
+# Provenance records this repository's URL, workflow path and release commit in
+# a public transparency log, and the verify job below checks all three match.
 on:
   workflow_dispatch:
     inputs:
@@ -20,14 +20,19 @@ on:
         required: false
         type: boolean
         default: false
+      dist-tag:
+        description: "npm dist-tag; blank picks latest, or legacy for a maintenance release"
+        required: false
+        type: string
+        default: ""
 
 env:
   REPOSITORY: baranovxyz/xlsx-stream-writer
-  RELEASE_BRANCH: refs/heads/master
 
 jobs:
   prepare:
-    if: ${{ github.repository == 'baranovxyz/xlsx-stream-writer' && github.ref == 'refs/heads/master' }}
+    # master, or a maintenance branch like 0.2.x for a backported release.
+    if: ${{ github.repository == 'baranovxyz/xlsx-stream-writer' && (github.ref == 'refs/heads/master' || endsWith(github.ref, '.x')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,21 +51,46 @@ jobs:
       - run: npm install -g npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
 
-      - name: Test on the declared engines floor and on current LTS
+      - name: Test
         run: npm test
 
       - name: Audit the exact installed tree
         run: npm audit --audit-level=low
 
+      # A maintenance release must not become the default install. Publishing
+      # 0.2.7 while `latest` is 1.2.0 would silently downgrade every fresh
+      # `npm install`, so anything below the current `latest` gets its own tag
+      # unless one is given explicitly.
       - name: Resolve version + dist-tag
         id: version
+        env:
+          REQUESTED_TAG: ${{ inputs['dist-tag'] }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [[ -n "$REQUESTED_TAG" ]]; then
+            echo "tag=$REQUESTED_TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ "$VERSION" == *-* ]]; then
             echo "tag=next" >> "$GITHUB_OUTPUT"
-          else
+            exit 0
+          fi
+
+          set +e
+          CURRENT=$(npm view xlsx-stream-writer dist-tags.latest 2>/dev/null)
+          set -e
+          if [[ -z "$CURRENT" ]]; then
             echo "tag=latest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          HIGHEST=$(printf '%s\n%s\n' "$VERSION" "$CURRENT" | sort -V | tail -1)
+          if [[ "$HIGHEST" == "$VERSION" ]]; then
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$VERSION is below the current latest ($CURRENT); publishing under the 'legacy' tag"
+            echo "tag=legacy" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Tag preflight
@@ -229,6 +259,7 @@ jobs:
       PACKAGE: xlsx-stream-writer@${{ needs.prepare.outputs.version }}
       EXPECTED_INTEGRITY: ${{ needs.prepare.outputs.integrity }}
       EXPECTED_SHA: ${{ github.sha }}
+      EXPECTED_REF: ${{ github.ref }}
     steps:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -300,7 +331,7 @@ jobs:
               const workflow = build?.externalParameters?.workflow;
               assertShape(
                 workflow?.repository === "https://github.com/baranovxyz/xlsx-stream-writer" &&
-                  workflow?.ref === "refs/heads/master" &&
+                  workflow?.ref === process.env.EXPECTED_REF &&
                   workflow?.path === ".github/workflows/publish.yml",
                 "provenance was produced by an unexpected workflow",
               );

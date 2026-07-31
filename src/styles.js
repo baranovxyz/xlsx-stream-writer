@@ -98,31 +98,35 @@ const compact = xml =>
 function getStyles(styles) {
   const NUM_FORMATS_START = 166;
   const numFormatsXml = [];
-  const numFormatsIndex = {};
-  const fillsXml = fillXmlDefault;
-  const fillsIndex = {};
-  const cellXfsXml = cellXfXmlDefault;
-  styles.forEach(style => {
+  const numFormatsIndex = new Map();
+  // Copy the defaults. Aliasing them would append every writer's fills and
+  // cell formats to the module-level arrays, so the second workbook built in a
+  // process would inherit the first one's styles and its style ids would point
+  // at the wrong entries.
+  const fillsXml = [...fillXmlDefault];
+  const fillsIndex = new Map();
+  const cellXfsXml = [...cellXfXmlDefault];
+  (styles || []).forEach(style => {
     const { fill, format } = style;
     if (format !== undefined) {
-      if (numFormatsIndex[format] === undefined) {
+      if (!numFormatsIndex.has(format)) {
         const formatIndex = numFormatsXml.length + NUM_FORMATS_START;
-        numFormatsIndex[format] = formatIndex;
+        numFormatsIndex.set(format, formatIndex);
         numFormatsXml.push(
           getFormatXml(helpers.escapeXmlExtended(format), formatIndex),
         );
       }
     }
     if (fill !== undefined) {
-      if (fillsIndex[fill] === undefined) {
-        fillsIndex[fill] = fillsXml.length;
+      if (!fillsIndex.has(fill)) {
+        fillsIndex.set(fill, fillsXml.length);
         fillsXml.push(getFillXml(helpers.escapeXmlExtended(fill)));
       }
     }
     cellXfsXml.push(
       getCellXfXml({
-        numFmtId: numFormatsIndex[format],
-        fillId: fillsIndex[fill],
+        numFmtId: format === undefined ? undefined : numFormatsIndex.get(format),
+        fillId: fill === undefined ? undefined : fillsIndex.get(fill),
       }),
     );
   });
