@@ -4,6 +4,33 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.1 — 2026-07-31
+
+Documentation and verification only. `src/` has not changed since 1.3.0, so the
+generated workbook is byte for byte what 1.3.0 produced — which the golden
+fixtures assert rather than merely claim.
+
+### Documentation
+
+- **The `0.2.7` entry below has been corrected.** It described a release that
+  was never published: the corruption fixes were backported into that version
+  before it reached the registry, so "no API or output changes" and the
+  `engines.node` floor it announced were both untrue of the package on npm. The
+  entry now records what actually shipped, and says that it was corrected.
+- Everything below `0.2.7` is deprecated on npm, worded to make clear it is a
+  data-correctness problem rather than a security one. Installing those versions
+  never exposed a caller to a vulnerable dependency — the `jszip` range floats,
+  so a fresh install resolved the fixed version regardless.
+
+### Verification
+
+- Generated workbooks are now checked against the Open XML schema on every CI
+  run, using Microsoft's own validator from the Open XML SDK. This is a stricter
+  question than the existing LibreOffice check, which is deliberately tolerant:
+  it answers whether the file conforms to the format as specified, rather than
+  whether one reader accepts it. Six workbooks pass against the Office2007
+  schema, the oldest an `.xlsx` can target.
+
 ## 1.3.0 — 2026-07-31
 
 Found by a second adversarial review pass, plus documentation the earlier
