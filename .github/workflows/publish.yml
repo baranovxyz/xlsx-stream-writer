@@ -10,8 +10,9 @@ name: Publish to npm
 # Trusted publisher -> GitHub Actions -> baranovxyz/xlsx-stream-writer ->
 # workflow `.github/workflows/publish.yml`, environment `npm`.
 #
-# npm provenance requires the source repository to be PUBLIC. While the repo is
-# private, `npm publish --provenance` fails; see docs/RELEASING.md.
+# Provenance publicly records this repository's URL, workflow path and release
+# commit in a transparency log. Read docs/RELEASING.md before the first release
+# while the repository is still private.
 on:
   workflow_dispatch:
     inputs:
