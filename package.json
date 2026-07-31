@@ -1,17 +1,21 @@
 {
   "name": "xlsx-stream-writer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Create xlsx in streaming mode in browser and nodejs, with no dependencies",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./package.json": "./package.json"
   },
   "browser": {
-    "./src/zip/deflate.node.js": "./src/zip/deflate.browser.js"
+    "./dist/zip/deflate.node.js": "./dist/zip/deflate.browser.js"
   },
   "files": [
-    "index.js",
+    "dist",
     "src",
     "README.md",
     "CHANGELOG.md",
@@ -21,15 +25,21 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "test": "node --test",
+    "build": "rm -rf dist && tsc",
+    "typecheck": "tsc --noEmit",
+    "pretest": "npm run build",
+    "test": "node --test && npm run test:types",
+    "test:types": "tsc -p tests/types/tsconfig.json",
     "test:watch": "node --test --watch",
-    "audit": "npm audit --audit-level=low"
+    "audit": "npm audit --audit-level=low",
+    "prepublishOnly": "npm run build"
   },
   "author": "Valery Baranov <valery@baranov.xyz> (http://baranov.xyz)",
   "license": "MIT",
-  "dependencies": {},
   "devDependencies": {
-    "jszip": "^3.10.1"
+    "@types/node": "^24.13.3",
+    "jszip": "^3.10.1",
+    "typescript": "^5.9.3"
   },
   "repository": {
     "type": "git",
@@ -46,6 +56,7 @@
     "write",
     "streaming",
     "spreadsheet",
+    "typescript",
     "zero-dependency"
   ]
 }

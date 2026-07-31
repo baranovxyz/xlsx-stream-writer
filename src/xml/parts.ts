@@ -1,29 +1,33 @@
 const replaceRegex = /\s+/g;
 const replaceReSec = />\s+</g;
 
-const getRowStart = row => `<row r="${row + 1}">`;
-const rowEnd = "</row>";
+export const getRowStart = (row: number): string => `<row r="${row + 1}">`;
+export const rowEnd = "</row>";
 
-const $s = styleId => (styleId === 0 ? "" : ' s="' + styleId + '"');
+const $s = (styleId: number): string => (styleId === 0 ? "" : ' s="' + styleId + '"');
 
-const getStringCellXml = (index, cell, styleId = 0) =>
+export const getStringCellXml = (index: number, cell: string, styleId = 0): string =>
   `<c r="${cell}" t="s"${$s(styleId)}><v>${index}</v></c>`;
 
-const getInlineStringCellXml = (s, cell, styleId = 0) =>
+export const getInlineStringCellXml = (s: string, cell: string, styleId = 0): string =>
   `<c r="${cell}" t="inlineStr"${$s(styleId)}><is><t>${s}</t></is></c>`;
 
-const getNumberCellXml = (value, cell, styleId = 0) =>
-  `<c r="${cell}" t="n"${$s(styleId)}><v>${value}</v></c>`;
+export const getNumberCellXml = (
+  value: number | string,
+  cell: string,
+  styleId = 0,
+): string => `<c r="${cell}" t="n"${$s(styleId)}><v>${value}</v></c>`;
 
-const getBooleanCellXml = (value, cell, styleId = 0) =>
+export const getBooleanCellXml = (value: boolean, cell: string, styleId = 0): string =>
   `<c r="${cell}" t="b"${$s(styleId)}><v>${value ? 1 : 0}</v></c>`;
 
 // A blank cell carries no value element at all. Writing an empty one instead —
 // `t="s"` with `<v></v>` — is a shared-string reference to nothing, which Excel
 // treats as corrupt content.
-const getBlankCellXml = (cell, styleId = 0) => `<c r="${cell}"${$s(styleId)}/>`;
+export const getBlankCellXml = (cell: string, styleId = 0): string =>
+  `<c r="${cell}"${$s(styleId)}/>`;
 
-const sheetHeader = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+export const sheetHeader = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <worksheet
     xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
     xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -39,11 +43,14 @@ const sheetHeader = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   .replace(replaceReSec, "><")
   .trim();
 
-const sheetFooter = "</sheetData></worksheet>";
+export const sheetFooter = "</sheetData></worksheet>";
 
 // `count` is how many cells reference the table; `uniqueCount` is how many
 // distinct strings it holds.
-const getSharedStringsHeader = (uniqueCount, count = uniqueCount) =>
+export const getSharedStringsHeader = (
+  uniqueCount: number,
+  count: number = uniqueCount,
+): string =>
   `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
      count="${count}"
@@ -52,20 +59,5 @@ const getSharedStringsHeader = (uniqueCount, count = uniqueCount) =>
     .replace(replaceReSec, "><")
     .trim();
 
-const getSharedStringXml = s => `<si><t>${s}</t></si>`;
-const sharedStringsFooter = "</sst>";
-
-module.exports = {
-  getSharedStringsHeader,
-  getSharedStringXml,
-  sharedStringsFooter,
-  sheetHeader,
-  getRowStart,
-  rowEnd,
-  getStringCellXml,
-  getInlineStringCellXml,
-  getNumberCellXml,
-  getBooleanCellXml,
-  getBlankCellXml,
-  sheetFooter,
-};
+export const getSharedStringXml = (s: string): string => `<si><t>${s}</t></si>`;
+export const sharedStringsFooter = "</sst>";

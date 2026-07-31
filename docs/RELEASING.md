@@ -45,8 +45,9 @@ to be true before it will work.
    - bump `version` in `package.json`
    - add a dated section to `CHANGELOG.md`
 2. `npm ci && npm test && npm audit --audit-level=low` — all clean.
-3. `npm pack --dry-run` — confirm the file list is `index.js`, `src/`,
-   `README.md`, `CHANGELOG.md`, `LICENSE`, `package.json` and nothing else.
+3. `npm pack --dry-run` — confirm the file list is `dist/`, `src/`, `README.md`,
+   `CHANGELOG.md`, `LICENSE`, `package.json` and nothing else. `src/` ships
+   because `dist/` carries source maps that point at it.
 4. Open a PR, get CI green, merge to `master`.
 5. Dry run first:
    `gh workflow run publish.yml --repo baranovxyz/xlsx-stream-writer -f dry-run=true`
@@ -92,3 +93,12 @@ Each phase is independently releasable, and each is a real user-visible step:
 
 Phase 4 (supply-chain hardening) landed early, alongside 0.2.7, so that every
 later phase publishes through the verified pipeline rather than by hand.
+
+All five are committed. Publishing any of them needs the two one-time setup
+steps above; until the repository is public, `npm publish --provenance` fails
+and nothing reaches the registry.
+
+If you would rather publish only the end state, release 1.1.0 and skip the
+intermediate versions — the changelog documents each step regardless. If you
+want the full history on npm, publish them in order, bumping `package.json` to
+each version on `master` in turn.

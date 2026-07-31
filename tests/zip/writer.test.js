@@ -7,8 +7,8 @@ const path = require("node:path");
 const zlib = require("node:zlib");
 
 const JSZip = require("jszip");
-const { writeZip } = require("../../src/zip/writer");
-const { crc32 } = require("../../src/zip/crc32");
+const { writeZip } = require("../../dist/zip/writer");
+const { crc32 } = require("../../dist/zip/crc32");
 const { readZip } = require("../support/unzip");
 
 async function build(entries, options) {

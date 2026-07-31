@@ -5,11 +5,13 @@
 // to zlib level 6.
 
 /**
- * @param {AsyncIterable<Uint8Array>} source
- * @param {number} level accepted for parity with the Node adapter; unused
- * @returns {AsyncGenerator<Uint8Array>}
+ * @param source uncompressed bytes
+ * @param _level accepted for parity with the Node adapter; unused
  */
-async function* deflateRaw(source, level) {
+export async function* deflateRaw(
+  source: AsyncIterable<Uint8Array>,
+  _level: number,
+): AsyncGenerator<Uint8Array> {
   if (typeof CompressionStream === "undefined") {
     throw new Error(
       "This environment has no CompressionStream, which xlsx-stream-writer needs to compress the workbook",
@@ -23,10 +25,12 @@ async function* deflateRaw(source, level) {
   // would deadlock as soon as the internal queue fills. The pump settles rather
   // than rejects, so a source failure cannot escape as an unhandled rejection
   // when the read loop tears down first — it is re-thrown below instead.
-  let pumpError = null;
+  let pumpError: unknown = null;
   const pump = (async () => {
     try {
-      for await (const chunk of source) await writer.write(chunk);
+      // A Uint8Array is a BufferSource; the cast only bridges the generic
+      // ArrayBufferLike/ArrayBuffer distinction in the DOM lib types.
+      for await (const chunk of source) await writer.write(chunk as BufferSource);
       await writer.close();
     } catch (error) {
       pumpError = error;
@@ -42,12 +46,12 @@ async function* deflateRaw(source, level) {
   let drained = false;
   try {
     while (true) {
-      let result;
+      let result: ReadableStreamReadResult<Uint8Array>;
       try {
         result = await reader.read();
       } catch (readError) {
         await pump;
-        throw pumpError || readError;
+        throw pumpError ?? readError;
       }
       if (result.done) {
         drained = true;
@@ -70,5 +74,3 @@ async function* deflateRaw(source, level) {
   await pump;
   if (pumpError) throw pumpError;
 }
-
-module.exports = { deflateRaw };

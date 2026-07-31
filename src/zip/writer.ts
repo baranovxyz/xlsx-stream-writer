@@ -16,10 +16,10 @@
  *   descriptor, with ZIP64 records so it stays correct past 4 GiB.
  */
 
-const { crc32 } = require("./crc32");
+import { crc32 } from "./crc32";
 // Bundlers swap this for ./deflate.browser.js through the "browser" field in
 // package.json, so node:zlib never reaches a browser build.
-const { deflateRaw } = require("./deflate.node");
+import { deflateRaw } from "./deflate.node";
 
 const SIG_LOCAL = 0x04034b50;
 const SIG_DESCRIPTOR = 0x08074b50;
@@ -42,28 +42,59 @@ const U32_MAX = 0xffffffff;
 const DOS_TIME = 0;
 const DOS_DATE = 0x0021;
 
-const BUFFER_LIMIT = 8 * 1024 * 1024;
+export const BUFFER_LIMIT = 8 * 1024 * 1024;
+
+export type DeflateRaw = (
+  source: AsyncIterable<Uint8Array>,
+  level: number,
+) => AsyncIterable<Uint8Array>;
+
+export type EntrySource = string | AsyncIterable<string | Uint8Array>;
+
+export interface ZipEntry {
+  name: string;
+  source: EntrySource;
+}
+
+export interface ZipOptions {
+  /** Deflate level, 0-9. Ignored by the browser adapter. */
+  level?: number;
+  /** Overridable so tests can exercise the streamed branch cheaply. */
+  bufferLimit?: number;
+  /** Overridable so tests can drive the browser adapter through this path. */
+  deflateRaw?: DeflateRaw;
+}
+
+interface WrittenEntry {
+  nameBytes: Uint8Array;
+  crc: number;
+  compressedSize: number;
+  uncompressedSize: number;
+  localOffset: number;
+  streaming: boolean;
+}
 
 const encoder = new TextEncoder();
 
-function record(length) {
+function record(length: number) {
   const bytes = new Uint8Array(length);
   return { bytes, view: new DataView(bytes.buffer) };
 }
 
-async function* toByteChunks(source) {
+async function* toByteChunks(source: EntrySource): AsyncGenerator<Uint8Array> {
   if (typeof source === "string") {
     yield encoder.encode(source);
     return;
   }
   for await (const chunk of source) {
-    if (typeof chunk === "string") yield encoder.encode(chunk);
-    else if (chunk instanceof Uint8Array) yield chunk;
-    else yield new Uint8Array(chunk);
+    yield typeof chunk === "string" ? encoder.encode(chunk) : chunk;
   }
 }
 
-function buildLocalHeader(nameBytes, entry) {
+function buildLocalHeader(
+  nameBytes: Uint8Array,
+  entry: { streaming: boolean; crc: number; compressedSize: number; uncompressedSize: number },
+): Uint8Array {
   // A streamed entry declares its ZIP64 extra field up front: that is how a
   // reader knows the trailing descriptor holds 8-byte sizes rather than 4.
   const extraLength = entry.streaming ? 20 : 0;
@@ -92,7 +123,11 @@ function buildLocalHeader(nameBytes, entry) {
   return bytes;
 }
 
-function buildDataDescriptor(entry) {
+function buildDataDescriptor(entry: {
+  crc: number;
+  compressedSize: number;
+  uncompressedSize: number;
+}): Uint8Array {
   const { bytes, view } = record(24);
   view.setUint32(0, SIG_DESCRIPTOR, true);
   view.setUint32(4, entry.crc, true);
@@ -101,8 +136,8 @@ function buildDataDescriptor(entry) {
   return bytes;
 }
 
-function buildCentralHeader(entry) {
-  const saturated = [];
+function buildCentralHeader(entry: WrittenEntry): Uint8Array {
+  const saturated: number[] = [];
   if (entry.uncompressedSize >= U32_MAX) saturated.push(entry.uncompressedSize);
   if (entry.compressedSize >= U32_MAX) saturated.push(entry.compressedSize);
   if (entry.localOffset >= U32_MAX) saturated.push(entry.localOffset);
@@ -140,9 +175,8 @@ function buildCentralHeader(entry) {
   return bytes;
 }
 
-function buildEndRecords(entryCount, cdOffset, cdSize) {
-  const needsZip64 =
-    entryCount > U16_MAX || cdOffset >= U32_MAX || cdSize >= U32_MAX;
+function buildEndRecords(entryCount: number, cdOffset: number, cdSize: number): Uint8Array {
+  const needsZip64 = entryCount > U16_MAX || cdOffset >= U32_MAX || cdSize >= U32_MAX;
   const { bytes, view } = record(needsZip64 ? 56 + 20 + 22 : 22);
   let pos = 0;
 
@@ -176,21 +210,16 @@ function buildEndRecords(entryCount, cdOffset, cdSize) {
   return bytes;
 }
 
-/**
- * @param {Array<{name: string, source: string | AsyncIterable}>} entries
- * @param {{level?: number}} options
- * @returns {AsyncGenerator<Uint8Array>} the archive, chunk by chunk
- */
-async function* writeZip(entries, options = {}) {
+/** Emit the archive, chunk by chunk. */
+export async function* writeZip(
+  entries: readonly ZipEntry[],
+  options: ZipOptions = {},
+): AsyncGenerator<Uint8Array> {
   const level = typeof options.level === "number" ? options.level : 4;
-  // Overridable so tests can exercise the streamed branch without building a
-  // multi-megabyte fixture for every case.
   const bufferLimit =
     typeof options.bufferLimit === "number" ? options.bufferLimit : BUFFER_LIMIT;
-  // Normally supplied by the "browser" field swap above; overridable so tests
-  // can drive the browser adapter through this same code path.
-  const compress = options.deflateRaw || deflateRaw;
-  const written = [];
+  const compress = options.deflateRaw ?? deflateRaw;
+  const written: WrittenEntry[] = [];
   let offset = 0;
 
   for (const entry of entries) {
@@ -206,8 +235,8 @@ async function* writeZip(entries, options = {}) {
       }
     })();
 
-    const compressed = compress(counted, level);
-    const buffered = [];
+    const compressed = compress(counted, level)[Symbol.asyncIterator]();
+    const buffered: Uint8Array[] = [];
     let compressedSize = 0;
     let streaming = false;
 
@@ -263,5 +292,3 @@ async function* writeZip(entries, options = {}) {
   }
   yield buildEndRecords(written.length, cdOffset, cdSize);
 }
-
-module.exports = { writeZip, BUFFER_LIMIT };

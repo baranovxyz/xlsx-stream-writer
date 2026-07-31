@@ -1,9 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const XlsxStreamWriter = require("../../index");
+const XlsxStreamWriter = require("../../dist");
 const { rows } = require("../helpers");
-const { getXmlFromXmlStream } = require("../../src/helpers");
+const { getXmlFromXmlStream } = require("../../dist/helpers");
 
 test("shared strings array is empty if inlineStrings: true option is set", async () => {
   const xlsx = new XlsxStreamWriter({ inlineStrings: true });

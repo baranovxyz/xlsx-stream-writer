@@ -154,11 +154,38 @@ same rows always produce the same bytes.
 - [ ] improve api
 - [x] add tests
 - [x] replace JSZip with a built-in zip writer, so the package has no runtime dependencies
-- [ ] ship TypeScript sources and type declarations
+- [x] ship TypeScript sources and type declarations
 - [ ] make browser build, put on some cdn
 - [ ] optimize shared string stuff
 - [ ] maybe use web workers to build xlsx in browser
 - [ ] maybe implement some specifis for nodejs
+
+## TypeScript
+
+The package is written in TypeScript and ships its own declarations — no
+`@types` package needed:
+
+```typescript
+import XlsxStreamWriter = require("xlsx-stream-writer");
+
+const styles: XlsxStreamWriter.CellStyle[] = [{ format: "dd.mm.yyyy" }];
+const rows: XlsxStreamWriter.Row[] = [["When"], [new Date()]];
+
+const xlsx = new XlsxStreamWriter({ styles });
+xlsx.addRows(rows);
+const buffer = await xlsx.getFile();
+```
+
+## Contributing
+
+```sh
+npm ci
+npm test        # builds, then runs the suite and the type checks
+npm run build   # tsc only
+```
+
+Tests run against the compiled `dist/`, so they exercise the artifact that
+actually ships. Releases are documented in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Security
 

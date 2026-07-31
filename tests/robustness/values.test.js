@@ -1,8 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const XlsxStreamWriter = require("../../index");
-const { getXmlFromXmlStream } = require("../../src/helpers");
+const XlsxStreamWriter = require("../../dist");
+const { getXmlFromXmlStream } = require("../../dist/helpers");
 const { assertWellFormedXml } = require("../support/xml");
 
 async function cellsFor(row, options = {}) {

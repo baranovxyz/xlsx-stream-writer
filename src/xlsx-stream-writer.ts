@@ -1,14 +1,32 @@
-const xmlParts = require("./xml/parts");
-const xmlBlobs = require("./xml/blobs");
-const { getCellAddress, escapeXml } = require("./helpers");
-const { toAsyncIterable, toWebReadableStream } = require("./streams");
-const { writeZip } = require("./zip/writer");
-const getStyles = require("./styles").getStyles;
+import * as xmlParts from "./xml/parts";
+import * as xmlBlobs from "./xml/blobs";
+import { getCellAddress, escapeXml } from "./helpers";
+import { toAsyncIterable, toWebReadableStream, type StreamLike } from "./streams";
+import { writeZip, type ZipEntry } from "./zip/writer";
+import { getStyles, type CellStyle } from "./styles";
 
-const defaultOptions = {
+/** A value this package knows how to put in a cell. */
+type CellValue = string | number | bigint | boolean | Date | null | undefined | object;
+
+type Row = readonly CellValue[];
+
+interface XlsxStreamWriterOptions {
+  /** Write strings into the sheet rather than into a shared-string table. */
+  inlineStrings?: boolean;
+  /** Cell formats, referenced by index from `styleIdFunc`. Index 0 is the default. */
+  styles?: readonly CellStyle[];
+  /** Choose a style index per cell. */
+  styleIdFunc?: (value: CellValue, columnId: number, rowId: number) => number;
+  /** Deflate level, 0-9. Node only; browsers expose no level control. */
+  compressionLevel?: number;
+}
+
+type ResolvedOptions = Required<XlsxStreamWriterOptions>;
+
+const defaultOptions: ResolvedOptions = {
   inlineStrings: false,
   styles: [],
-  styleIdFunc: (value, columnId, rowId) => 0,
+  styleIdFunc: () => 0,
   compressionLevel: 4,
 };
 
@@ -26,7 +44,20 @@ const SHEET_PART = "xl/worksheets/sheet1.xml";
 const SHARED_STRINGS_PART = "xl/sharedStrings.xml";
 
 class XlsxStreamWriter {
-  constructor(options) {
+  readonly options: ResolvedOptions;
+  readonly xlsx: Record<string, string>;
+
+  sharedStringsArr: string[] = [];
+  sharedStringsMap: Record<string, number> = {};
+
+  private rows: AsyncIterable<Row> | null = null;
+  private rowsAdded = false;
+  private consumed = false;
+  private sharedStringRefs = 0;
+  private sheetStream: ReadableStream<string> | null = null;
+  private sharedStringsStream: ReadableStream<string> | null = null;
+
+  constructor(options?: XlsxStreamWriterOptions) {
     // Spread rather than assign into the defaults: Object.assign(defaultOptions,
     // options) mutates the shared module-level object, so the next writer built
     // in the same process would inherit this one's options.
@@ -39,82 +70,74 @@ class XlsxStreamWriter {
       throw new TypeError("options.styleIdFunc must be a function");
     }
 
-    this.sharedStringsArr = [];
-    this.sharedStringsMap = {};
-
-    this._rows = null;
-    this._rowsAdded = false;
-    this._consumed = false;
-    this._sharedStringRefs = 0;
-
     this.xlsx = {
-      "[Content_Types].xml": cleanUpXml(xmlBlobs.contentTypes),
-      "_rels/.rels": cleanUpXml(xmlBlobs.rels),
-      "xl/workbook.xml": cleanUpXml(xmlBlobs.workbook),
-      "xl/styles.xml": cleanUpXml(getStyles(this.options.styles)),
-      "xl/_rels/workbook.xml.rels": cleanUpXml(xmlBlobs.workbookRels),
+      "[Content_Types].xml": xmlBlobs.contentTypes,
+      "_rels/.rels": xmlBlobs.rels,
+      "xl/workbook.xml": xmlBlobs.workbook,
+      "xl/styles.xml": getStyles(this.options.styles),
+      "xl/_rels/workbook.xml.rels": xmlBlobs.workbookRels,
     };
   }
 
   /**
-   * Add rows to the workbook.
-   * @param {Array | Readable | ReadableStream | Iterable | AsyncIterable} rowsOrStream
-   *   array of arrays, a readable stream of arrays, or any iterable of arrays
-   * @return {undefined}
+   * Add rows to the workbook: an array of arrays, a readable stream of arrays,
+   * or any iterable or async iterable of arrays.
    */
-  addRows(rowsOrStream) {
-    if (this._rowsAdded) {
+  addRows(rowsOrStream: StreamLike<Row>): void {
+    if (this.rowsAdded) {
       throw new Error(
         "addRows() can only be called once per writer — the previous row stream would be discarded. Create a new XlsxStreamWriter for another workbook.",
       );
     }
-    this._rows = toAsyncIterable(rowsOrStream, "Rows");
-    this._rowsAdded = true;
+    this.rows = toAsyncIterable(rowsOrStream, "Rows");
+    this.rowsAdded = true;
   }
 
-  /** The worksheet part, as a web ReadableStream of XML text. */
-  get sheetXmlStream() {
-    if (!this._rowsAdded) return null;
-    if (!this._sheetStream) this._sheetStream = toWebReadableStream(this._sheetXml());
-    return this._sheetStream;
+  /** The worksheet part, as a stream of XML text. */
+  get sheetXmlStream(): ReadableStream<string> | null {
+    if (!this.rowsAdded) return null;
+    if (!this.sheetStream) this.sheetStream = toWebReadableStream(this.sheetXml());
+    return this.sheetStream;
   }
 
   /**
-   * The shared-string table, as a web ReadableStream of XML text.
+   * The shared-string table, as a stream of XML text.
    *
    * Only read this once `sheetXmlStream` has been drained: the table is built
    * as the sheet is walked, and this stream begins emitting — counts included —
    * as soon as you touch it.
    */
-  get sharedStringsXmlStream() {
-    if (!this._sharedStringsStream) {
-      this._sharedStringsStream = toWebReadableStream(this._sharedStringsXml());
+  get sharedStringsXmlStream(): ReadableStream<string> {
+    if (!this.sharedStringsStream) {
+      this.sharedStringsStream = toWebReadableStream(this.sharedStringsXml());
     }
-    return this._sharedStringsStream;
+    return this.sharedStringsStream;
   }
 
-  async *_sheetXml() {
+  private async *sheetXml(): AsyncGenerator<string> {
     yield xmlParts.sheetHeader;
     let rowIndex = 0;
-    for await (const row of this._rows) {
-      yield this._getRowXml(row, rowIndex);
+    for await (const row of this.rows!) {
+      yield this.getRowXml(row, rowIndex);
       rowIndex++;
     }
     yield xmlParts.sheetFooter;
   }
 
-  async *_sharedStringsXml() {
-    yield xmlParts.getSharedStringsHeader(
-      this.sharedStringsArr.length,
-      this._sharedStringRefs,
-    );
+  private async *sharedStringsXml(): AsyncGenerator<string> {
+    yield xmlParts.getSharedStringsHeader(this.sharedStringsArr.length, this.sharedStringRefs);
     for (const value of this.sharedStringsArr) {
       yield xmlParts.getSharedStringXml(escapeXml(String(value)));
     }
     yield xmlParts.sharedStringsFooter;
   }
 
-  _getRowXml(row, rowIndex) {
+  /** @internal exposed for tests; the row-limit guard is impractical to reach otherwise */
+  _getRowXml(row: Row, rowIndex: number): string {
+    return this.getRowXml(row, rowIndex);
+  }
+
+  private getRowXml(row: Row, rowIndex: number): string {
     if (rowIndex >= MAX_ROWS) {
       throw new RangeError(
         `Row ${rowIndex + 1} exceeds the Excel worksheet limit of ${MAX_ROWS} rows`,
@@ -133,13 +156,13 @@ class XlsxStreamWriter {
     row.forEach((cellValue, colIndex) => {
       const cellAddress = getCellAddress(rowIndex + 1, colIndex + 1);
       const styleId = this.options.styleIdFunc(cellValue, colIndex, rowIndex);
-      rowXml += this._getCellXml(cellValue, cellAddress, styleId);
+      rowXml += this.getCellXml(cellValue, cellAddress, styleId);
     });
     rowXml += xmlParts.rowEnd;
     return rowXml;
   }
 
-  _getCellXml(value, address, styleId = 0) {
+  private getCellXml(value: CellValue, address: string, styleId = 0): string {
     if (value === null || typeof value === "undefined") {
       return xmlParts.getBlankCellXml(address, styleId);
     }
@@ -162,10 +185,10 @@ class XlsxStreamWriter {
         ? xmlParts.getNumberCellXml(serial, address, styleId)
         : xmlParts.getBlankCellXml(address, styleId);
     }
-    return this._getStringCellXml(value, address, styleId);
+    return this.getStringCellXml(value, address, styleId);
   }
 
-  _getStringCellXml(value, address, styleId) {
+  private getStringCellXml(value: CellValue, address: string, styleId: number): string {
     const stringValue = String(value);
 
     // Anything whose toString is still Object.prototype's would land in the
@@ -180,23 +203,23 @@ class XlsxStreamWriter {
     if (this.options.inlineStrings) {
       return xmlParts.getInlineStringCellXml(escapeXml(stringValue), address, styleId);
     }
-    this._sharedStringRefs++;
-    return xmlParts.getStringCellXml(this._lookupString(stringValue), address, styleId);
+    this.sharedStringRefs++;
+    return xmlParts.getStringCellXml(this.lookupString(stringValue), address, styleId);
   }
 
-  _lookupString(value) {
-    let sharedStringIndex = this.sharedStringsMap[value];
-    if (typeof sharedStringIndex !== "undefined") return sharedStringIndex;
-    sharedStringIndex = this.sharedStringsArr.length;
-    this.sharedStringsMap[value] = sharedStringIndex;
+  private lookupString(value: string): number {
+    const existing = this.sharedStringsMap[value];
+    if (existing !== undefined) return existing;
+    const index = this.sharedStringsArr.length;
+    this.sharedStringsMap[value] = index;
     this.sharedStringsArr.push(value);
-    return sharedStringIndex;
+    return index;
   }
 
-  _entries() {
-    const entries = Object.keys(this.xlsx).map(name => ({
+  private entries(): ZipEntry[] {
+    const entries: ZipEntry[] = Object.keys(this.xlsx).map(name => ({
       name,
-      source: this.xlsx[name],
+      source: this.xlsx[name]!,
     }));
     // Async generators, deliberately not the ReadableStream getters above: a
     // ReadableStream starts pulling the moment it is constructed, which would
@@ -204,60 +227,57 @@ class XlsxStreamWriter {
     // walked. A generator does nothing until the zip writer reaches its entry,
     // so the ordering the workbook depends on is a contract here rather than
     // the accident it was under JSZip.
-    entries.push({ name: SHEET_PART, source: this._sheetXml() });
-    entries.push({ name: SHARED_STRINGS_PART, source: this._sharedStringsXml() });
+    entries.push({ name: SHEET_PART, source: this.sheetXml() });
+    entries.push({ name: SHARED_STRINGS_PART, source: this.sharedStringsXml() });
     return entries;
   }
 
-  _claim() {
-    if (!this._rowsAdded) throw new Error("call addRows() before building the workbook");
-    if (this._consumed) {
+  private claim(): void {
+    if (!this.rowsAdded) throw new Error("call addRows() before building the workbook");
+    if (this.consumed) {
       throw new Error(
         "this writer has already produced a workbook — the row stream has been consumed",
       );
     }
-    this._consumed = true;
+    this.consumed = true;
   }
 
   /**
    * The workbook as a stream of byte chunks, without ever holding the whole
    * archive in memory.
-   * @returns {ReadableStream<Uint8Array>}
    */
-  getStream() {
-    this._claim();
+  getStream(): ReadableStream<Uint8Array> {
+    this.claim();
     return toWebReadableStream(
-      writeZip(this._entries(), { level: this.options.compressionLevel }),
+      writeZip(this.entries(), { level: this.options.compressionLevel }),
     );
   }
 
-  /**
-   * The whole workbook at once: a Buffer in Node.js, a Blob in the browser.
-   * @returns {Promise<Buffer|Blob>}
-   */
-  async getFile() {
-    this._claim();
-    const chunks = [];
-    for await (const chunk of writeZip(this._entries(), {
+  /** The whole workbook at once: a Buffer in Node.js, a Blob in the browser. */
+  async getFile(): Promise<Buffer | Blob> {
+    this.claim();
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of writeZip(this.entries(), {
       level: this.options.compressionLevel,
     })) {
       chunks.push(chunk);
     }
 
     const isBrowser =
-      typeof window !== "undefined" &&
-      {}.toString.call(window) === "[object Window]";
+      typeof window !== "undefined" && {}.toString.call(window) === "[object Window]";
 
     return isBrowser
-      ? new Blob(chunks, {
+      ? new Blob(chunks as BlobPart[], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         })
       : Buffer.concat(chunks);
   }
 }
 
-function cleanUpXml(xml) {
-  return xml.replace(/>\s+</g, "><").trim();
+// Merged with the class so consumers of this CommonJS package can still write
+// `import type { CellValue } from "xlsx-stream-writer"` alongside `export =`.
+declare namespace XlsxStreamWriter {
+  export type { CellValue, Row, XlsxStreamWriterOptions, CellStyle };
 }
 
-module.exports = XlsxStreamWriter;
+export = XlsxStreamWriter;
