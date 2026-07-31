@@ -23,7 +23,7 @@ to be true before it will work.
 ## Changing the pipeline itself
 
 **CI does not run this workflow.** A pull request that edits `publish.yml` shows
-the same six green checks as any other, and not one of them executed a line of
+the same seven green checks as any other, and not one of them executed a line of
 it — they all exercise `ci.yml`. Treat that green as silence, not evidence.
 
 Rehearsing an edit is harder than it looks, because two guards block the obvious

@@ -7,3 +7,7 @@ dist
 **/*.log
 **/*.xml
 result*
+
+# Build output from the CI-only schema validator (tests/schema).
+tests/schema/bin
+tests/schema/obj
