@@ -4,6 +4,26 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.2 — 2026-07-31
+
+Continuous integration only. `src/` has not changed since 1.3.0, so the generated
+workbook is byte for byte what 1.3.0 and 1.3.1 produced, and the golden fixtures
+assert that rather than the changelog claiming it.
+
+### Verification
+
+- **The test matrix now covers Node 26**, alongside 20.19.0, 22 and 24. Node 26
+  becomes Active LTS on 2026-10-28, and running it while it is still the Current
+  line is the point: a break surfaces while it is nobody's default rather than on
+  the day it becomes everybody's. The supported range is unchanged —
+  `engines.node` stays `>=20.19.0`, and `@types/node` stays pinned to that floor,
+  since the types are what stop a newer API from compiling.
+- **The `schema` check is now required to merge.** It has run on every pull
+  request since 1.3.1, but was never added to branch protection, so a workbook
+  that failed Microsoft's Open XML validator would have gone green. Nothing was
+  published through that gap — the check passed on every run it made — but the
+  guarantee 1.3.1 announced was not actually being enforced until now.
+
 ## 1.3.1 — 2026-07-31
 
 Documentation and verification only. `src/` has not changed since 1.3.0, so the
