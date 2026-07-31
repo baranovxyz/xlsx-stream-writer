@@ -122,3 +122,53 @@ well-formed" — the readers above are what establish that.
 Nothing here covers styling beyond what the examples exercise, and the CSV proxy
 flattens formatting by design — a value that reads back correctly says nothing
 about how it is displayed.
+
+### Why Excel is not in CI
+
+Asked and answered, so it does not get re-asked every release.
+
+- **Hosted runners have no Office.** GitHub's Windows runner image ships no
+  Excel — checked against the image manifest, not assumed. There is nothing to
+  drive.
+- **A self-hosted Windows runner does not fix it.** Microsoft has long advised
+  against server-side automation of Office, and a desktop licence does not cover
+  unattended server use. That makes it a licensing and supportability problem
+  rather than a setup cost.
+- **The Excel REST API in Microsoft Graph would work, and cannot be used here.**
+  It needs a Microsoft 365 tenant and stored credentials, and repository secrets
+  are withheld from pull requests opened from forks — so the check would be
+  missing in exactly the case where untrusted input arrives.
+
+So the manual check stands: open a generated workbook in Excel once before
+relying on a release.
+
+### What runs instead: Microsoft's own schema validator
+
+Excel cannot run here, but the validator Microsoft wrote for the format can.
+`tests/archive/schema.test.js` builds six workbooks and hands them to
+`OpenXmlValidator` from the Open XML SDK — MIT-licensed, headless, .NET on
+Linux — checked against the **Office2007** schema, the oldest an `.xlsx` can
+target and therefore the strictest bar available. A file valid against it is
+valid for every later version.
+
+This is a different axis from LibreOffice, which is why it adds signal rather
+than repeating it. LibreOffice answers *can a reader read this*. The validator
+answers *does this conform to the format as specified*, which is the question
+Excel enforces and the tolerant reader does not. Every bug this suite has caught
+so far was the first kind.
+
+It also fails usefully. Where Excel says "unreadable content" and LibreOffice
+says nothing at all, this names the error, the part it is in, and the XPath.
+
+**It is not a substitute for Excel.** Schema conformance and Excel acceptance
+are not the same set: Excel refuses some conformant files and tolerates some
+non-conformant ones. This narrows the gap; it does not close it, and the manual
+check above still stands.
+
+The fixtures are defined separately from the spreadsheet ones on purpose. Two
+independent sets catch more than one set read twice.
+
+`.NET is installed only in the CI job.` Nothing local or published needs it, and
+`npm test` skips these checks when `dotnet` is absent — which is the normal
+state on a contributor's machine. `XLSX_REQUIRE_SCHEMA=1` turns the skip into a
+failure, and CI sets it, so a runner that loses .NET cannot go quietly green.

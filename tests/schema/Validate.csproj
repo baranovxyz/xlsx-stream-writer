@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Runs only in CI. This package has no .NET anywhere else, and nothing in the
+    published tarball depends on it: `npm test` skips the schema check when
+    `dotnet` is absent, which is the normal state on a contributor's machine.
+    See docs/verifying-output.md.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>xlsx-schema-check</AssemblyName>
+    <RootNamespace>XlsxSchemaCheck</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+  </ItemGroup>
+
+</Project>

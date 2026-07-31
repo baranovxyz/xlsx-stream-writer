@@ -56,6 +56,29 @@ jobs:
         env:
           XLSX_REQUIRE_SPREADSHEET: "1"
 
+  # The spreadsheet job proves a reader accepts the output. This one proves it
+  # conforms to the format as specified, using Microsoft's own validator — a
+  # different question, and the one Excel actually enforces. Excel cannot run
+  # here; docs/verifying-output.md records why, and what this does not replace.
+  #
+  # .NET is installed only in this job. Nothing local or published needs it.
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "8.0.x"
+      - run: npm ci --ignore-scripts
+      # Same reason as XLSX_REQUIRE_SPREADSHEET above: without it a runner that
+      # loses .NET passes this job while checking nothing.
+      - run: npm test
+        env:
+          XLSX_REQUIRE_SCHEMA: "1"
+
   audit:
     runs-on: ubuntu-latest
     steps:
