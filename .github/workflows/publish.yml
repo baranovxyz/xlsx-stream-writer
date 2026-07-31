@@ -10,9 +10,8 @@ name: Publish to npm
 # Trusted publisher -> GitHub Actions -> baranovxyz/xlsx-stream-writer ->
 # workflow `.github/workflows/publish.yml`, environment `npm`.
 #
-# Provenance publicly records this repository's URL, workflow path and release
-# commit in a transparency log. Read docs/RELEASING.md before the first release
-# while the repository is still private.
+# Provenance records this repository's URL, workflow path and release commit in
+# a public transparency log, and the verify job below checks all three match.
 on:
   workflow_dispatch:
     inputs:
