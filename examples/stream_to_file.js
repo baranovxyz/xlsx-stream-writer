@@ -1,5 +1,5 @@
 // Stream a large workbook straight to disk, without ever holding it in memory.
-const XlsxStreamWriter = require("../src/xlsx-stream-writer");
+const XlsxStreamWriter = require("../dist");
 const { Readable } = require("node:stream");
 const { pipeline } = require("node:stream/promises");
 const fs = require("node:fs");

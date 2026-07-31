@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 
-const XlsxStreamWriter = require("../../index");
+const XlsxStreamWriter = require("../../dist");
 const { rows } = require("../helpers");
 
 function failingStream(message) {

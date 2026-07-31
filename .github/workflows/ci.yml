@@ -24,6 +24,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci --ignore-scripts
+      # `npm test` builds first, so this also proves the TypeScript sources
+      # compile on every supported Node version.
       - run: npm test
       - name: Preview npm tarball contents
         run: npm pack --dry-run

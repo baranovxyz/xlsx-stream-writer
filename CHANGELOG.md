@@ -4,6 +4,29 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0 — 2026-07-31
+
+The package is written in TypeScript and ships type declarations. No behaviour
+changes: the generated workbook is byte-for-byte identical to 1.0.0, which the
+golden tests assert.
+
+### Added
+
+- Type declarations for the whole public surface, so no `@types` package is
+  needed. `CellValue`, `Row`, `CellStyle` and `XlsxStreamWriterOptions` are
+  exported alongside the class.
+- Source maps and the TypeScript sources ship with the package, so stack traces
+  and go-to-definition land on real code.
+
+### Changed
+
+- Sources moved from `src/*.js` to `src/*.ts`; the published entry point is now
+  `dist/index.js`. `require("xlsx-stream-writer")` is unaffected.
+- Tests run against the compiled `dist/`, so they exercise the artifact that
+  actually ships rather than the sources it was built from.
+- The build is `tsc` alone — no bundler. `typescript` and `@types/node` are the
+  only additions, both development-only.
+
 ## 1.0.0 — 2026-07-31
 
 **The package now has no runtime dependencies.** `jszip` and

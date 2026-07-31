@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { inflateRawSync } = require("node:zlib");
 
-const nodeAdapter = require("../../src/zip/deflate.node");
-const browserAdapter = require("../../src/zip/deflate.browser");
+const nodeAdapter = require("../../dist/zip/deflate.node");
+const browserAdapter = require("../../dist/zip/deflate.browser");
 
 async function deflateAll(adapter, chunks, level = 4) {
   async function* source() {

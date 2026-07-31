@@ -1,6 +1,6 @@
 // Inline strings skip the shared-string table: a larger file, but nothing to
 // accumulate in memory while the sheet is written.
-const XlsxStreamWriter = require("../src/xlsx-stream-writer");
+const XlsxStreamWriter = require("../dist");
 const fs = require("fs");
 
 const rows = [

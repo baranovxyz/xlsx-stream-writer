@@ -10,16 +10,14 @@ for (let i = 0; i < 256; i++) {
 }
 
 /**
- * @param {Uint8Array} bytes
- * @param {number} previous running value from an earlier chunk, 0 to start
- * @returns {number} unsigned 32-bit checksum
+ * @param bytes the chunk to fold in
+ * @param previous running value from an earlier chunk, 0 to start
+ * @returns unsigned 32-bit checksum
  */
-function crc32(bytes, previous = 0) {
+export function crc32(bytes: Uint8Array, previous = 0): number {
   let c = ~previous >>> 0;
   for (let i = 0; i < bytes.length; i++) {
-    c = (TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8)) >>> 0;
+    c = (TABLE[(c ^ bytes[i]!) & 0xff]! ^ (c >>> 8)) >>> 0;
   }
   return ~c >>> 0;
 }
-
-module.exports = { crc32 };

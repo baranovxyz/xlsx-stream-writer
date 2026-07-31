@@ -2,9 +2,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const JSZip = require("jszip");
-const XlsxStreamWriter = require("../../index");
+const XlsxStreamWriter = require("../../dist");
 const { readZip } = require("../support/unzip");
-const { BUFFER_LIMIT } = require("../../src/zip/writer");
+const { BUFFER_LIMIT } = require("../../dist/zip/writer");
 
 // Enough rows to push the worksheet part past the writer's buffering limit, so
 // the genuinely streamed code path runs — not the injectable one the unit tests

@@ -1,9 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const XlsxStreamWriter = require("../../index");
+const XlsxStreamWriter = require("../../dist");
 const { rows } = require("../helpers");
-const { getXmlFromXmlStream } = require("../../src/helpers");
+const { getXmlFromXmlStream } = require("../../dist/helpers");
 const { readZip } = require("../support/unzip");
 const { assertWellFormedXml } = require("../support/xml");
 

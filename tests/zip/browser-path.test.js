@@ -4,8 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const JSZip = require("jszip");
-const { writeZip } = require("../../src/zip/writer");
-const { deflateRaw } = require("../../src/zip/deflate.browser");
+const { writeZip } = require("../../dist/zip/writer");
+const { deflateRaw } = require("../../dist/zip/deflate.browser");
 const { readZip } = require("../support/unzip");
 
 const packageJson = require("../../package.json");
@@ -30,8 +30,8 @@ test("the browser field maps a file that exists", () => {
   }
 });
 
-test("no source file outside the swapped adapter imports node builtins", () => {
-  const root = path.join(__dirname, "../../src");
+test("no built file outside the swapped adapter imports node builtins", () => {
+  const root = path.join(__dirname, "../../dist");
   const allowed = new Set([path.join(root, "zip", "deflate.node.js")]);
   const offenders = [];
 
@@ -42,7 +42,8 @@ test("no source file outside the swapped adapter imports node builtins", () => {
       else if (p.endsWith(".js") && !allowed.has(p)) {
         const source = fs.readFileSync(p, "utf8");
         // A stray node: import would break any browser bundle, and the browser
-        // field only redirects the one adapter.
+        // field only redirects the one adapter. Checking the built output means
+        // this holds for what actually ships, not just for the sources.
         if (/require\(["']node:/.test(source)) offenders.push(path.relative(root, p));
       }
     }

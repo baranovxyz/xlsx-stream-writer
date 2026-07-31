@@ -6,7 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const JSZip = require("jszip");
-const XlsxStreamWriter = require("../../index");
+const XlsxStreamWriter = require("../../dist");
 const { rows } = require("../helpers");
 const { PARTS } = require("../support/golden");
 

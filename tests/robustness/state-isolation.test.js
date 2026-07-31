@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const XlsxStreamWriter = require("../../index");
+const XlsxStreamWriter = require("../../dist");
 const { rows } = require("../helpers");
 const { readZip } = require("../support/unzip");
 

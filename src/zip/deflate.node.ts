@@ -4,15 +4,17 @@
 // level, and level 4 is the trade-off this package has always shipped: most of
 // the ratio for a fraction of the CPU on very large sheets.
 
-const { createDeflateRaw } = require("node:zlib");
-const { Readable } = require("node:stream");
+import { createDeflateRaw } from "node:zlib";
+import { Readable } from "node:stream";
 
 /**
- * @param {AsyncIterable<Uint8Array>} source
- * @param {number} level zlib compression level, 0-9
- * @returns {AsyncGenerator<Uint8Array>}
+ * @param source uncompressed bytes
+ * @param level zlib compression level, 0-9
  */
-async function* deflateRaw(source, level) {
+export async function* deflateRaw(
+  source: AsyncIterable<Uint8Array>,
+  level: number,
+): AsyncGenerator<Uint8Array> {
   const deflater = createDeflateRaw({ level });
   const input = Readable.from(source);
 
@@ -23,5 +25,3 @@ async function* deflateRaw(source, level) {
 
   yield* deflater;
 }
-
-module.exports = { deflateRaw };

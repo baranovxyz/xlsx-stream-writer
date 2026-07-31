@@ -1,5 +1,5 @@
 // Rows from a generator, written with getFile().
-const XlsxStreamWriter = require("../src/xlsx-stream-writer");
+const XlsxStreamWriter = require("../dist");
 const fs = require("fs");
 
 function* generateRows() {

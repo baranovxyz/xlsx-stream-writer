@@ -46,7 +46,12 @@ jobs:
       - run: npm install -g npm@11.17.0 --ignore-scripts
       - run: npm ci --ignore-scripts
 
-      - name: Test on the declared engines floor and on current LTS
+      # Explicit, because `npm pack` below runs with --ignore-scripts and so
+      # will not trigger prepublishOnly. Without this the tarball would ship
+      # without dist/.
+      - run: npm run build
+
+      - name: Test the built artifact
         run: npm test
 
       - name: Audit the exact installed tree
@@ -98,7 +103,13 @@ jobs:
             echo "::error::Release tarball contains files that must not be published"
             exit 1
           fi
-          for REQUIRED in package/package.json package/index.js package/README.md package/LICENSE; do
+          # dist ships with source maps, so the TypeScript sources they point at
+          # have to ship too or debugging lands on missing files.
+          if ! grep -q '^package/src/' "$RUNNER_TEMP/actual.txt"; then
+            echo "::error::Release tarball has source maps but no sources"
+            exit 1
+          fi
+          for REQUIRED in package/package.json package/dist/index.js package/dist/index.d.ts package/README.md package/LICENSE; do
             if ! grep -qx "$REQUIRED" "$RUNNER_TEMP/actual.txt"; then
               echo "::error::Release tarball is missing $REQUIRED"
               exit 1

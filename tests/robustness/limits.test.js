@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const XlsxStreamWriter = require("../../index");
+const XlsxStreamWriter = require("../../dist");
 
 const MAX_ROWS = 1048576;
 const MAX_COLUMNS = 16384;
@@ -34,7 +34,7 @@ test("a row past the row limit is rejected by row number", () => {
 });
 
 test("the last legal cell address is the one Excel expects", () => {
-  const { getCellAddress } = require("../../src/helpers");
+  const { getCellAddress } = require("../../dist/helpers");
   assert.equal(getCellAddress(1, 1), "A1");
   assert.equal(getCellAddress(1, 26), "Z1");
   assert.equal(getCellAddress(1, 27), "AA1");

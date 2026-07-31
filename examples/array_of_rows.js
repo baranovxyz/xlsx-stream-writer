@@ -1,4 +1,4 @@
-const XlsxStreamWriter = require("../src/xlsx-stream-writer");
+const XlsxStreamWriter = require("../dist");
 const fs = require("fs");
 
 const rows = [
