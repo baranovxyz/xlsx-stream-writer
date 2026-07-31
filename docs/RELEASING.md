@@ -76,15 +76,20 @@ The publish workflow runs from that branch and gives any version below the
 current `latest` the `legacy` dist-tag, so a maintenance release cannot become
 the default install. Check `npm view xlsx-stream-writer dist-tags` afterwards.
 
-**Dependabot does not watch this branch.** `.github/dependabot.yml` declares no
-`target-branch`, so both ecosystems track the default branch only. The coverage
-is exactly inverted against the risk: `master` has zero runtime dependencies and
-is watched, while `0.2.x` ships `jszip` and `stream-browserify` to the projects
-that by definition cannot upgrade away from a problem, and is not. Advisories
-against those two will not open a pull request here — check them by hand before
-a maintenance release, or add a second pair of `updates` entries with
-`target-branch: "0.2.x"` and accept the pull request traffic.
+**Dependabot watches this branch for version updates only.** A second pair of
+`updates` entries in `.github/dependabot.yml` carries `target-branch: "0.2.x"`;
+the option covers one branch per entry, so each ecosystem needs its own. They
+pick up new releases of `jszip` and `stream-browserify`, and the action pins in
+this branch's own `ci.yml` and `publish.yml`.
 
+They do not pick up advisories, and no configuration can. Dependabot security
+updates always run against the default branch whatever `target-branch` says, so
+an advisory against `jszip` opens a pull request against `master` — which does
+not depend on it — and none here. The branch shipping runtime dependencies to
+projects that by definition cannot upgrade away from a problem is still the one
+with no automatic advisory signal, so run `npm audit` against `0.2.x` by hand
+before every maintenance release. At 0.2.7 that tree is fifteen packages and
+reports nothing.
 
 ## Cutting a release
 
