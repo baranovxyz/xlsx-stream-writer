@@ -99,10 +99,14 @@ function getStyles(styles) {
   const NUM_FORMATS_START = 166;
   const numFormatsXml = [];
   const numFormatsIndex = {};
-  const fillsXml = fillXmlDefault;
+  // Copy the defaults. Aliasing them would append every writer's fills and
+  // cell formats to the module-level arrays, so the second workbook built in a
+  // process would inherit the first one's styles and its style ids would point
+  // at the wrong entries.
+  const fillsXml = [...fillXmlDefault];
   const fillsIndex = {};
-  const cellXfsXml = cellXfXmlDefault;
-  styles.forEach(style => {
+  const cellXfsXml = [...cellXfXmlDefault];
+  (styles || []).forEach(style => {
     const { fill, format } = style;
     if (format !== undefined) {
       if (numFormatsIndex[format] === undefined) {
