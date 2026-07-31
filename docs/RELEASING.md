@@ -6,9 +6,11 @@ to be true before it will work.
 
 ## Invariants
 
-- **No local npm auth, ever.** Publishing uses npm OIDC trusted publishing from
-  GitHub Actions. You never run `npm publish` from a laptop, and no long-lived
-  npm token exists.
+- **No local npm auth for publishing, ever.** Publishing uses npm OIDC trusted
+  publishing from GitHub Actions. You never run `npm publish` from a laptop, and
+  no long-lived npm token exists. Deprecating a published version is the one
+  administrative action this rules out and cannot replace — see "Deprecating a
+  published version".
 - **The workflow never bumps the version.** It publishes whatever version is in
   `package.json` on `master`, then tags and releases that commit. Bumping is a
   reviewed commit like any other.
@@ -90,6 +92,33 @@ projects that by definition cannot upgrade away from a problem is still the one
 with no automatic advisory signal, so run `npm audit` against `0.2.x` by hand
 before every maintenance release. At 0.2.7 that tree is fifteen packages and
 reports nothing.
+
+## Deprecating a published version
+
+`npm deprecate` is the one maintainer action the pipeline cannot perform.
+Trusted publishing issues a token inside `publish.yml` and only for the publish
+itself, so a deprecation needs a real credential. Do not put an npm token in a
+repository secret to avoid that — a long-lived credential is exactly what
+trusted publishing exists to remove, and it would sit there between the rare
+occasions anyone deprecates anything.
+
+Use a transient session instead, and end it in the same sitting:
+
+```
+npm login          # browser flow, revocable
+npm deprecate ...  # see below
+npm logout         # revokes the session
+```
+
+Two things that bite:
+
+- **Quote the version spec.** A range starts with `<`, which the shell reads as
+  a redirect: `npm deprecate 'pkg@<x.y.z' 'message'`.
+- **Deprecate the whole affected range, not the newest broken version.** A
+  warning on one version implies the ones below it are fine. If the bug predates
+  that release, they are not.
+
+Undo with an empty message: `npm deprecate 'pkg@<x.y.z' ''`.
 
 ## Cutting a release
 

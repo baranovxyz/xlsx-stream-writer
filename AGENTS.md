@@ -55,12 +55,18 @@ list or starting a pass of your own.
   first** — cell values, style attributes, and the numbers a caller's callback
   returns. An unvalidated value can close its attribute and open another.
 
-- **Pin actions to a SHA and comment the *full* version.** `# v4.3.1`, never
-  `# v4`. Dependabot rewrites a comment that spells out the version and leaves a
-  major-only one alone, so the bump lands and the comment quietly goes on
-  claiming the old major. That already happened once: a `checkout` pin read
-  `# v4` while pointing at v7.0.1. The SHA is what runs, so this misleads a
-  reader rather than the runner — which is why nothing catches it.
+- **Pin actions to a SHA and comment the *full* version, and re-read the comment
+  on every bump.** `# v4.3.1`, never `# v4`. A major-only comment can survive a
+  major bump and go on claiming the old major: a `checkout` pin read `# v4` while
+  pointing at v7.0.1. The SHA is what runs, so this misleads a reader rather than
+  the runner — which is why nothing catches it.
+
+  Do not trust a rule about *when* Dependabot rewrites the comment. The obvious
+  one — that it rewrites a spelled-out version and leaves a major-only one alone
+  — held for `checkout` and `setup-node` and then failed: the two artifact bumps
+  rewrote `# v4` to `# v7.0.1` and `# v8.0.1` on their own. Same repository, same
+  week, same comment shape, opposite behaviour. Check the comment against the SHA
+  when reviewing the bump; that is the only step that works either way.
 
 - **No literal control characters in source files.** Write `\uXXXX` escapes, even
   inside test fixtures. Literal ones make tools treat the file as binary.
