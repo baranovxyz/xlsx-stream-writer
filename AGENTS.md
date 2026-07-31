@@ -27,6 +27,12 @@ pass, and history stays linear. The repository allows **rebase merges only** —
 squash and merge commits are disabled, so every commit reaches `master` intact.
 Write commits worth keeping.
 
+**Two lines are published.** `master` is 1.x, on the `latest` tag. The `0.2.x`
+branch is 0.x, on the `legacy` tag, for callers who cannot take Node 20.19+ or a
+`CompressionStream`-capable browser. A fix for output that is *wrong or
+unopenable* usually belongs on both; anything that changes output which already
+worked belongs on `master` alone. See [docs/RELEASING.md](docs/RELEASING.md).
+
 ## Conventions not enforced by tooling
 
 - **Never key a lookup table by a caller-supplied string using a plain object.**
