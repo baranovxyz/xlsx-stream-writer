@@ -7,6 +7,22 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: deps
+    ignore:
+      # @types/node is pinned to the major named in engines.node, so the
+      # compiler rejects an API the floor does not have. A major bump here
+      # silently removes that check rather than updating anything — proven:
+      # on ^20, `node:sqlite` and `fs.promises.glob` fail to compile; on ^24
+      # and ^26 they compile clean and would crash on Node 20.19.
+      # Raise engines.node first; this follows, it does not lead.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7 removed `moduleResolution: node10`, which
+      # tests/types/tsconfig.json uses deliberately to prove the published
+      # declarations still resolve for a consumer on a classic tsconfig.
+      # Taking the major means dropping that assertion, which is a
+      # compatibility decision and not a dependency bump.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # Workflow actions are pinned to commit SHAs, so they cannot pick up upstream
   # fixes on their own. Dependabot is what moves those pins.
