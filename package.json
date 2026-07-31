@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "src",
+    "docs/migrating-to-1.x.md",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"

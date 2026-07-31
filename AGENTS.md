@@ -62,6 +62,9 @@ Write commits worth keeping.
 - **[docs/verifying-output.md](docs/verifying-output.md)** — how output
   correctness is actually established, and what remains unverified. Read before
   treating a green suite as proof that a workbook opens.
+- **[docs/migrating-to-1.x.md](docs/migrating-to-1.x.md)** — the 0.2.x → 1.x
+  migration, written to be followed mechanically. Read when a caller reports
+  breakage after upgrading, or when changing anything it documents as stable.
 - **[docs/RELEASING.md](docs/RELEASING.md)** — the release runbook. Read before
   changing the version or the publish workflow.
 - **[SECURITY.md](SECURITY.md)** — threat model and reporting.

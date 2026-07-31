@@ -23,6 +23,11 @@ releases should have carried.
 
 ### Documentation
 
+- **A 0.2.x → 1.x migration guide**, `docs/migrating-to-1.x.md`, written to be
+  followed step by step: what needs no change, what is a find-and-replace, and
+  which behaviour changes need a human or an agent to look at the cells. It
+  ships inside the package, so it is readable from `node_modules` without the
+  repository.
 - The release runbook covers the 0.2 maintenance line: why a backport must be a
   `0.2.z` rather than a `0.3.0`, what may and may not be backported, and how the
   `legacy` dist-tag keeps a maintenance release from becoming the default

@@ -29,6 +29,9 @@ carries the same corruption fixes and keeps the old behaviour:
 npm install xlsx-stream-writer@legacy
 ```
 
+Coming from 0.2.x? See [docs/migrating-to-1.x.md](docs/migrating-to-1.x.md) —
+written to be followed step by step.
+
 ## Rows from an array
 
 ```javascript
@@ -198,6 +201,7 @@ Tests run against the compiled `dist/`, so they exercise the artifact that
 actually ships — go through `npm test` rather than the test runner directly, or
 you will be reading whatever was built last.
 
+- [docs/migrating-to-1.x.md](docs/migrating-to-1.x.md) — upgrading from 0.2.x
 - [AGENTS.md](AGENTS.md) — commands and the conventions tooling does not enforce
 - [docs/architecture.md](docs/architecture.md) — why the ZIP writer and stream
   plumbing are shaped the way they are
