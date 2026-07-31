@@ -22,7 +22,7 @@ not the sources**. Invoking the test runner directly exercises whatever was buil
 last, so a source edit followed by a bare runner invocation silently reports
 stale results. Always go through `npm test`.
 
-`master` is protected: pushes go through a pull request, all five CI checks must
+`master` is protected: pushes go through a pull request, all six CI checks must
 pass, and history stays linear. The repository allows **rebase merges only** —
 squash and merge commits are disabled, so every commit reaches `master` intact.
 Write commits worth keeping.
