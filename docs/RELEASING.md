@@ -20,21 +20,7 @@ to be true before it will work.
 
 ## One-time setup
 
-1. **Decide on repository visibility.** The npm CLI's own guard is about the
-   *package*: it refuses `--provenance` unless the package is public or
-   `--access public` is passed, which this workflow does
-   (`libnpmpublish/lib/publish.js`: "Can't generate provenance for new or
-   private package, you must set `access` to public").
-
-   The repository is a separate question. `xlsx-stream-writer` is private on
-   GitHub today, and a provenance attestation publicly records the repository
-   URL, the workflow path and the release commit SHA in a transparency log. So
-   publishing with provenance from a private repo advertises that the repo
-   exists and which commit shipped. Make the repository public before the first
-   provenance-backed release, or drop `--provenance` from `publish.yml` and
-   accept an unattested release.
-
-2. **Configure the trusted publisher on npmjs.org.** Package
+1. **Configure the trusted publisher on npmjs.org.** Package
    `xlsx-stream-writer` → Settings → Trusted publisher → GitHub Actions:
 
    | Field       | Value                                |
@@ -43,10 +29,10 @@ to be true before it will work.
    | Workflow    | `.github/workflows/publish.yml`      |
    | Environment | `npm`                                |
 
-3. **Create the `npm` environment** in the GitHub repository settings. Add
+2. **Create the `npm` environment** in the GitHub repository settings. Add
    required reviewers if you want a human gate before the token is issued.
 
-4. **Remove any `NPM_TOKEN` secret.** Trusted publishing makes it unnecessary,
+3. **Remove any `NPM_TOKEN` secret.** Trusted publishing makes it unnecessary,
    and a lingering token is a credential to steal.
 
 ## Cutting a release
