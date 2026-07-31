@@ -31,7 +31,13 @@ Write commits worth keeping.
 branch is 0.x, on the `legacy` tag, for callers who cannot take Node 20.19+ or a
 `CompressionStream`-capable browser. A fix for output that is *wrong or
 unopenable* usually belongs on both; anything that changes output which already
-worked belongs on `master` alone. See [docs/RELEASING.md](docs/RELEASING.md).
+worked belongs on `master` alone.
+
+`0.2.x` is **frozen but releasable**: nothing watches it, no dependency work
+happens on it speculatively, and it still publishes a `0.2.z` when one is
+warranted. So a release from it begins by catching the branch up — its
+dependencies are unaudited and its action pins may have stopped working. See
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ## Conventions not enforced by tooling
 

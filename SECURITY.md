@@ -2,13 +2,19 @@
 
 ## Supported versions
 
-Only the latest published version receives fixes. This package has a single
-maintainer; there are no backport branches.
+This package has a single maintainer. Two lines are published.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.2.7+  | yes       |
+| 1.x     | yes — active, on the `latest` tag |
+| 0.2.7   | frozen — on the `legacy` tag; a patch is published if one is warranted |
 | < 0.2.7 | no — deprecated on npm; silently writes wrong cell values |
+
+Frozen means no proactive work: nothing watches that branch between releases,
+and a report against it will take longer to answer. It does not mean abandoned.
+A fix for input that produces a wrong or unopenable file is backported and
+published as a `0.2.z`; a fix that would change output which already worked is
+not, because callers on that line pinned it for stability.
 
 Everything below 0.2.7 is deprecated, but **not for a security reason**, and the
 distinction is worth keeping straight. Those versions look up shared strings in
