@@ -15,6 +15,14 @@ const getInlineStringCellXml = (s, cell, styleId = 0) =>
 const getNumberCellXml = (value, cell, styleId = 0) =>
   `<c r="${cell}" t="n"${$s(styleId)}><v>${value}</v></c>`;
 
+const getBooleanCellXml = (value, cell, styleId = 0) =>
+  `<c r="${cell}" t="b"${$s(styleId)}><v>${value ? 1 : 0}</v></c>`;
+
+// A blank cell carries no value element at all. Writing an empty one instead —
+// `t="s"` with `<v></v>` — is a shared-string reference to nothing, which Excel
+// treats as corrupt content.
+const getBlankCellXml = (cell, styleId = 0) => `<c r="${cell}"${$s(styleId)}/>`;
+
 const sheetHeader = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <worksheet
     xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -33,11 +41,13 @@ const sheetHeader = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 
 const sheetFooter = "</sheetData></worksheet>";
 
-const getSharedStringsHeader = count =>
+// `count` is how many cells reference the table; `uniqueCount` is how many
+// distinct strings it holds.
+const getSharedStringsHeader = (uniqueCount, count = uniqueCount) =>
   `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
      count="${count}"
-     uniqueCount="${count}">`
+     uniqueCount="${uniqueCount}">`
     .replace(replaceRegex, " ")
     .replace(replaceReSec, "><")
     .trim();
@@ -55,5 +65,7 @@ module.exports = {
   getStringCellXml,
   getInlineStringCellXml,
   getNumberCellXml,
+  getBooleanCellXml,
+  getBlankCellXml,
   sheetFooter,
 };

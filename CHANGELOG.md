@@ -4,6 +4,59 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0 — 2026-07-31
+
+Correctness and robustness. No dependency changes. Output for the documented
+happy path is unchanged; the differences below all concern inputs that
+previously produced a corrupt workbook, a wrong one, or a hang.
+
+### Fixed
+
+- **Styles leaked between writers.** `getStyles` appended to module-level
+  arrays, so the second workbook built in a process inherited the first one's
+  fills and cell formats, and every style id after the first pointed at the
+  wrong entry.
+- **Options leaked between writers.** The constructor merged into the shared
+  defaults object, so `new XlsxStreamWriter()` could inherit an earlier
+  writer's `inlineStrings` and `styles`.
+- **Native Node streams were rejected.** `addRows` tested `instanceof` against
+  `stream-browserify`'s class, so passing a `node:stream` Readable — the stream
+  type Node callers actually have — threw "Argument must be an array of arrays".
+  It now also accepts web `ReadableStream`s, iterables and async iterables.
+- **Source-stream errors hung forever.** `.pipe()` does not forward errors, so a
+  failing source left `getFile()` pending indefinitely. It now rejects.
+- **Illegal XML characters corrupted the file.** Control characters and unpaired
+  surrogates were written raw, producing a workbook Excel refuses to open. They
+  are now removed; tab, newline and carriage return are kept.
+- **An empty row set produced a malformed sheet.** With no rows, the worksheet
+  part was written without its header — a bare closing tag.
+- **Blank cells were written as broken shared-string references.** `null`,
+  `undefined` and `NaN` produced `t="s"` with an empty `<v>`, a reference to
+  nothing. They are now genuinely blank cells.
+- **`Infinity` was written literally**, as `<v>Infinity</v>`, which Excel treats
+  as damaged content. Non-finite numbers are now blank.
+- `sst/@count` reported the distinct string count; it now reports the number of
+  cells referencing the table, with `uniqueCount` reporting distinct values.
+
+### Changed
+
+- `boolean` values become real boolean cells (`t="b"`), so Excel shows `TRUE` and
+  `FALSE` rather than the text "true" and "false".
+- `Date` values become Excel date serials instead of
+  `"Thu Jan 01 1970 00:00:00 GMT+0000 (Coordinated Universal Time)"`. Apply a
+  date `format` style to display them as dates.
+- `bigint` values are written as numbers rather than strings.
+- Values whose only `toString` is `Object.prototype`'s now raise instead of
+  writing `[object Object]` into the sheet. Objects that define their own
+  `toString` — decimal and date libraries — keep working.
+- Rows beyond 1 048 576, and rows wider than 16 384 cells, raise with the
+  offending row number instead of producing a file Excel will not open.
+- `addRows()` and `getFile()` each raise if called twice on the same writer.
+  Calling them twice previously discarded work or produced a corrupt result
+  silently.
+- Invalid `options.styles` and `options.styleIdFunc` are rejected at
+  construction rather than failing later.
+
 ## 0.2.7 — 2026-07-31
 
 Security and tooling only. No API or output changes: the generated workbook is
