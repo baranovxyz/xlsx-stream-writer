@@ -48,7 +48,11 @@ class XlsxStreamWriter {
   readonly xlsx: Record<string, string>;
 
   sharedStringsArr: string[] = [];
-  sharedStringsMap: Record<string, number> = {};
+  // A Map, not a plain object: a cell holding "constructor", "toString" or
+  // "__proto__" would otherwise look up an inherited member of Object.prototype
+  // rather than miss, and that member would be written into the sheet as the
+  // string's index — corrupting the workbook and losing the string table.
+  sharedStringsMap = new Map<string, number>();
 
   private rows: AsyncIterable<Row> | null = null;
   private rowsAdded = false;
@@ -56,6 +60,8 @@ class XlsxStreamWriter {
   private sharedStringRefs = 0;
   private sheetStream: ReadableStream<string> | null = null;
   private sharedStringsStream: ReadableStream<string> | null = null;
+  /** cellXfs entries: the implicit default plus one per declared style. */
+  private readonly styleCount: number;
 
   constructor(options?: XlsxStreamWriterOptions) {
     // Spread rather than assign into the defaults: Object.assign(defaultOptions,
@@ -69,6 +75,8 @@ class XlsxStreamWriter {
     if (typeof this.options.styleIdFunc !== "function") {
       throw new TypeError("options.styleIdFunc must be a function");
     }
+
+    this.styleCount = (this.options.styles?.length ?? 0) + 1;
 
     this.xlsx = {
       "[Content_Types].xml": xmlBlobs.contentTypes,
@@ -155,11 +163,36 @@ class XlsxStreamWriter {
     let rowXml = xmlParts.getRowStart(rowIndex);
     row.forEach((cellValue, colIndex) => {
       const cellAddress = getCellAddress(rowIndex + 1, colIndex + 1);
-      const styleId = this.options.styleIdFunc(cellValue, colIndex, rowIndex);
+      const styleId = this.resolveStyleId(cellValue, colIndex, rowIndex, cellAddress);
       rowXml += this.getCellXml(cellValue, cellAddress, styleId);
     });
     rowXml += xmlParts.rowEnd;
     return rowXml;
+  }
+
+  /**
+   * A style id is interpolated straight into an attribute and has to index a
+   * real `cellXfs` entry, so anything else is rejected at the cell rather than
+   * left to surface as a repair prompt when the file is opened.
+   */
+  private resolveStyleId(
+    value: CellValue,
+    colIndex: number,
+    rowIndex: number,
+    address: string,
+  ): number {
+    const styleId = this.options.styleIdFunc(value, colIndex, rowIndex);
+    if (!Number.isInteger(styleId) || (styleId as number) < 0) {
+      throw new TypeError(
+        `styleIdFunc returned ${JSON.stringify(styleId)} for cell ${address}; it must return a non-negative integer`,
+      );
+    }
+    if (styleId >= this.styleCount) {
+      throw new RangeError(
+        `styleIdFunc returned style ${styleId} for cell ${address}, but only ${this.styleCount} styles are defined (0 is the default, and options.styles adds ${this.styleCount - 1} more)`,
+      );
+    }
+    return styleId;
   }
 
   private getCellXml(value: CellValue, address: string, styleId = 0): string {
@@ -208,10 +241,10 @@ class XlsxStreamWriter {
   }
 
   private lookupString(value: string): number {
-    const existing = this.sharedStringsMap[value];
+    const existing = this.sharedStringsMap.get(value);
     if (existing !== undefined) return existing;
     const index = this.sharedStringsArr.length;
-    this.sharedStringsMap[value] = index;
+    this.sharedStringsMap.set(value, index);
     this.sharedStringsArr.push(value);
     return index;
   }
@@ -237,6 +270,13 @@ class XlsxStreamWriter {
     if (this.consumed) {
       throw new Error(
         "this writer has already produced a workbook — the row stream has been consumed",
+      );
+    }
+    if (this.sheetStream) {
+      // Reading sheetXmlStream walks the rows, and rows can only be walked
+      // once. Without this the workbook would come out silently empty.
+      throw new Error(
+        "sheetXmlStream has already been handed out, and reading it consumes the rows — inspect the XML streams or build a workbook, not both",
       );
     }
     this.consumed = true;

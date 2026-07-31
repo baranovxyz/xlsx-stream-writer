@@ -96,30 +96,33 @@ const compact = (xml: string) =>
 export function getStyles(styles?: readonly CellStyle[] | null): string {
   const NUM_FORMATS_START = 166;
   const numFormatsXml: string[] = [];
-  const numFormatsIndex: Record<string, number> = {};
+  // Maps, not plain objects: a format or fill of "constructor", "toString" or
+  // "__proto__" would otherwise find an inherited member instead of undefined,
+  // and that member would be interpolated straight into the attribute.
+  const numFormatsIndex = new Map<string, number>();
   // Copy the defaults. Aliasing them would append every writer's fills and
   // cell formats to the module-level arrays, so the second workbook built in a
   // process would inherit the first one's styles and its style ids would point
   // at the wrong entries.
   const fillsXml = [...fillXmlDefault];
-  const fillsIndex: Record<string, number> = {};
+  const fillsIndex = new Map<string, number>();
   const cellXfsXml = [...cellXfXmlDefault];
 
   for (const style of styles ?? []) {
     const { fill, format } = style;
-    if (format !== undefined && numFormatsIndex[format] === undefined) {
+    if (format !== undefined && !numFormatsIndex.has(format)) {
       const formatIndex = numFormatsXml.length + NUM_FORMATS_START;
-      numFormatsIndex[format] = formatIndex;
+      numFormatsIndex.set(format, formatIndex);
       numFormatsXml.push(getFormatXml(escapeXmlExtended(format), formatIndex));
     }
-    if (fill !== undefined && fillsIndex[fill] === undefined) {
-      fillsIndex[fill] = fillsXml.length;
+    if (fill !== undefined && !fillsIndex.has(fill)) {
+      fillsIndex.set(fill, fillsXml.length);
       fillsXml.push(getFillXml(escapeXmlExtended(fill)));
     }
     cellXfsXml.push(
       getCellXfXml({
-        numFmtId: format === undefined ? undefined : numFormatsIndex[format],
-        fillId: fill === undefined ? undefined : fillsIndex[fill],
+        numFmtId: format === undefined ? undefined : numFormatsIndex.get(format),
+        fillId: fill === undefined ? undefined : fillsIndex.get(fill),
       }),
     );
   }
