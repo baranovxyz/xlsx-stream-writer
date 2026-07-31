@@ -4,6 +4,40 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.2.0 — 2026-07-31
+
+Found by an adversarial review pass over the preceding phases.
+
+### Fixed
+
+- **A cell holding the string `"constructor"` corrupted the whole workbook.**
+  The shared-string table was a plain object, so values that name a member of
+  `Object.prototype` — `constructor`, `toString`, `valueOf`, `hasOwnProperty`,
+  `__proto__` — found the inherited member instead of missing. The sheet then
+  referenced `<v>function Object() { [native code] }</v>` where an index
+  belonged, and the string table came out empty. This affects **every
+  previously published version, 0.2.6 included.**
+- The same collision applied to style `format` and `fill` values, producing
+  `numFmtId="function Object() { [native code] }"`.
+- Reading `sheetXmlStream` and then calling `getFile()` produced a **silently
+  empty workbook**: the stream consumes the rows, and rows can only be walked
+  once. Both now raise instead.
+
+### Changed
+
+- `styleIdFunc` return values are validated. A non-integer, a negative number,
+  or an index past the declared styles now raises with the offending cell
+  address. Previously the value was interpolated straight into the `s`
+  attribute, so a string could close the attribute and inject another, and an
+  out-of-range index produced a file Excel offers to repair.
+
+### Added
+
+- Direct tests for the ZIP64 central-directory and end-of-archive records. Those
+  branches trigger past 4 GiB and past 65 535 entries, which no fixture can
+  reach in reasonable time, so the record builders are exercised directly.
+- A test that concurrent writers stay isolated.
+
 ## 1.1.0 — 2026-07-31
 
 The package is written in TypeScript and ships type declarations. No behaviour

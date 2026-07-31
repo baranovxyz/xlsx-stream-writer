@@ -210,6 +210,15 @@ function buildEndRecords(entryCount: number, cdOffset: number, cdSize: number): 
   return bytes;
 }
 
+/**
+ * Record builders, exposed for tests only. The ZIP64 branches trigger on sizes
+ * past 4 GiB and on more than 65535 entries, which no fixture can reach in a
+ * reasonable time — so they are driven directly instead of left uncovered.
+ * The package `exports` map does not expose this module, so consumers cannot
+ * reach these.
+ */
+export const __testing = { buildCentralHeader, buildEndRecords, buildLocalHeader };
+
 /** Emit the archive, chunk by chunk. */
 export async function* writeZip(
   entries: readonly ZipEntry[],
