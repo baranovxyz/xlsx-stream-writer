@@ -1,29 +1,41 @@
 {
   "name": "xlsx-stream-writer",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Create xlsx in streaming mode in browser and nodejs",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
-    "test": "jest --watch"
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "audit": "npm audit --audit-level=low"
   },
   "author": "Valery Baranov <valery@baranov.xyz> (http://baranov.xyz)",
   "license": "MIT",
   "dependencies": {
-    "jszip": "^3.1.5",
-    "stream-browserify": "^2.0.2"
+    "jszip": "^3.10.1",
+    "stream-browserify": "^3.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/baranovxyz/xlsx-stream-writer.git"
+    "url": "git+https://github.com/baranovxyz/xlsx-stream-writer.git"
   },
+  "bugs": {
+    "url": "https://github.com/baranovxyz/xlsx-stream-writer/issues"
+  },
+  "homepage": "https://github.com/baranovxyz/xlsx-stream-writer#readme",
   "keywords": [
     "excel",
     "xlsx",
     "stream",
     "write"
-  ],
-  "devDependencies": {
-    "crc": "^3.8.0",
-    "jest": "^25.0.0"
-  }
+  ]
 }

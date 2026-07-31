@@ -1,0 +1,349 @@
+name: Publish to npm
+
+# Manual release. The unprivileged `prepare` job installs, tests, and packs the
+# exact candidate tarball. Only the minimal `publish` job receives an npm OIDC
+# token; it downloads and hashes the prepared tarball and never checks out or
+# executes repository code. Registry and provenance verification run afterwards
+# without OIDC.
+#
+# One-time setup on npmjs.org: package xlsx-stream-writer -> Settings ->
+# Trusted publisher -> GitHub Actions -> baranovxyz/xlsx-stream-writer ->
+# workflow `.github/workflows/publish.yml`, environment `npm`.
+#
+# npm provenance requires the source repository to be PUBLIC. While the repo is
+# private, `npm publish --provenance` fails; see docs/RELEASING.md.
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Dry run (skip the actual publish)"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REPOSITORY: baranovxyz/xlsx-stream-writer
+  RELEASE_BRANCH: refs/heads/master
+
+jobs:
+  prepare:
+    if: ${{ github.repository == 'baranovxyz/xlsx-stream-writer' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      integrity: ${{ steps.pack.outputs.integrity }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm >= 11.5.1. Install the exact CLI with
+      # lifecycle scripts disabled; never set NODE_AUTH_TOKEN.
+      - run: npm install -g npm@11.17.0 --ignore-scripts
+      - run: npm ci --ignore-scripts
+
+      - name: Test on the declared engines floor and on current LTS
+        run: npm test
+
+      - name: Audit the exact installed tree
+        run: npm audit --audit-level=low
+
+      - name: Resolve version + dist-tag
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag preflight
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          REMOTE_SHA=$(git ls-remote origin "refs/tags/$TAG^{}" | cut -f1)
+          if [[ -z "$REMOTE_SHA" ]]; then
+            REMOTE_SHA=$(git ls-remote origin "refs/tags/$TAG" | cut -f1)
+          fi
+          if [[ -n "$REMOTE_SHA" && "$REMOTE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "::error::Tag $TAG already points at $REMOTE_SHA, expected $GITHUB_SHA"
+            exit 1
+          fi
+
+      - name: Pack release candidate
+        id: pack
+        run: |
+          npm pack --ignore-scripts --json > "$RUNNER_TEMP/pack.json"
+          node -e '
+            const fs = require("node:fs");
+            const entries = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const entry = entries[0];
+            if (!entry?.integrity || !entry?.filename) throw new Error("npm pack returned no artifact");
+            fs.renameSync(entry.filename, "xlsx-stream-writer-release.tgz");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "integrity=" + entry.integrity + "\n");
+          ' "$RUNNER_TEMP/pack.json"
+
+      - name: Verify the tarball ships only the intended files
+        run: |
+          tar -tf xlsx-stream-writer-release.tgz | sort > "$RUNNER_TEMP/actual.txt"
+          cat "$RUNNER_TEMP/actual.txt"
+          if grep -qE '^package/(tests|examples|\.github)/' "$RUNNER_TEMP/actual.txt"; then
+            echo "::error::Release tarball contains files that must not be published"
+            exit 1
+          fi
+          for REQUIRED in package/package.json package/index.js package/README.md package/LICENSE; do
+            if ! grep -qx "$REQUIRED" "$RUNNER_TEMP/actual.txt"; then
+              echo "::error::Release tarball is missing $REQUIRED"
+              exit 1
+            fi
+          done
+
+      - name: Install the packed tarball and smoke-test it in isolation
+        run: |
+          SMOKE="$RUNNER_TEMP/smoke"
+          mkdir -p "$SMOKE"
+          cd "$SMOKE"
+          npm init -y >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund "$GITHUB_WORKSPACE/xlsx-stream-writer-release.tgz"
+          node -e '
+            const XlsxStreamWriter = require("xlsx-stream-writer");
+            const xlsx = new XlsxStreamWriter();
+            xlsx.addRows([["Name", "Location"], ["Alpha", "Adams"]]);
+            xlsx.getFile().then((buf) => {
+              if (!Buffer.isBuffer(buf) || buf.length === 0) throw new Error("empty workbook");
+              if (buf.readUInt32LE(0) !== 0x04034b50) throw new Error("not a zip archive");
+              console.log("packed artifact produced a " + buf.length + " byte workbook");
+            });
+          '
+
+      - name: Scan the packed tarball for secret-like values
+        env:
+          TRUFFLEHOG_INSTALLER_SHA256: c394defeaea8a7c48f828a2051b608a9b19f43f34b891407b66a386c3e2591e2
+        run: |
+          INSTALLER="$RUNNER_TEMP/trufflehog-install.sh"
+          curl -fsSL \
+            https://raw.githubusercontent.com/trufflesecurity/trufflehog/a7bdcf95222c4369422764e168fad84fc912f0dc/scripts/install.sh \
+            -o "$INSTALLER"
+          echo "$TRUFFLEHOG_INSTALLER_SHA256  $INSTALLER" | sha256sum --check --strict
+          sh "$INSTALLER" -b "$RUNNER_TEMP/bin" v3.95.9
+          EXTRACT_DIR="$RUNNER_TEMP/release-extract"
+          rm -rf "$EXTRACT_DIR"
+          mkdir -p "$EXTRACT_DIR"
+          tar -xzf xlsx-stream-writer-release.tgz -C "$EXTRACT_DIR"
+          set +e
+          "$RUNNER_TEMP/bin/trufflehog" filesystem "$EXTRACT_DIR/package" \
+            --no-verification --no-update --fail --json --log-level=-1 \
+            >"$RUNNER_TEMP/trufflehog.jsonl" 2>"$RUNNER_TEMP/trufflehog.stderr"
+          SCAN_STATUS=$?
+          set -e
+          if [[ "$SCAN_STATUS" -ne 0 ]]; then
+            echo "::error::Packed tarball contains a secret-like value or the scanner failed"
+            cat "$RUNNER_TEMP/trufflehog.stderr" >&2
+            exit 1
+          fi
+
+      - name: Guard against republishing an existing version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DRY_RUN: ${{ inputs['dry-run'] }}
+        run: |
+          PACKAGE="xlsx-stream-writer@$VERSION"
+          set +e
+          npm view "$PACKAGE" version >/dev/null 2>"$RUNNER_TEMP/npm-view.err"
+          VIEW_STATUS=$?
+          set -e
+          if [[ "$VIEW_STATUS" -eq 0 ]]; then
+            echo "::error::$PACKAGE is already published; bump the version before releasing"
+            exit 1
+          elif ! grep -q 'E404' "$RUNNER_TEMP/npm-view.err"; then
+            cat "$RUNNER_TEMP/npm-view.err" >&2
+            echo "::error::Could not determine whether $PACKAGE already exists"
+            exit 1
+          fi
+          echo "$PACKAGE is available for publication"
+
+      - name: Upload tested release candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: xlsx-stream-writer-release-candidate
+          path: xlsx-stream-writer-release.tgz
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      actions: read
+      id-token: write
+    env:
+      ARTIFACT: ${{ github.workspace }}/release-artifact/xlsx-stream-writer-release.tgz
+      EXPECTED_INTEGRITY: ${{ needs.prepare.outputs.integrity }}
+      DIST_TAG: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@11.17.0 --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: xlsx-stream-writer-release-candidate
+          path: release-artifact
+      - name: Verify downloaded tarball integrity
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const { createHash } = require("node:crypto");
+            const actual = "sha512-" + createHash("sha512")
+              .update(fs.readFileSync(process.env.ARTIFACT))
+              .digest("base64");
+            if (actual !== process.env.EXPECTED_INTEGRITY) {
+              throw new Error("downloaded release candidate integrity mismatch");
+            }
+          '
+      - name: Publish (dry run)
+        if: ${{ inputs['dry-run'] }}
+        run: npm publish "$ARTIFACT" --provenance --access public --ignore-scripts --tag "$DIST_TAG" --dry-run
+      - name: Publish
+        if: ${{ !inputs['dry-run'] }}
+        run: npm publish "$ARTIFACT" --provenance --access public --ignore-scripts --tag "$DIST_TAG"
+
+  verify:
+    needs: [prepare, publish]
+    if: ${{ !inputs['dry-run'] }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      PACKAGE: xlsx-stream-writer@${{ needs.prepare.outputs.version }}
+      EXPECTED_INTEGRITY: ${{ needs.prepare.outputs.integrity }}
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Verify registry integrity and GitHub provenance
+        run: |
+          PUBLISHED_INTEGRITY=""
+          ATTESTATION_URL=""
+          for ATTEMPT in 1 2 3 4 5 6; do
+            set +e
+            PUBLISHED_INTEGRITY=$(npm view "$PACKAGE" dist.integrity 2>"$RUNNER_TEMP/integrity.err")
+            ATTESTATION_URL=$(npm view "$PACKAGE" dist.attestations.url 2>"$RUNNER_TEMP/attestation.err")
+            set -e
+            if [[ -n "$PUBLISHED_INTEGRITY" && -n "$ATTESTATION_URL" ]]; then break; fi
+            if [[ "$ATTEMPT" -eq 6 ]]; then
+              cat "$RUNNER_TEMP/integrity.err" "$RUNNER_TEMP/attestation.err" >&2
+              echo "::error::$PACKAGE registry metadata did not become available after 6 attempts"
+              exit 1
+            fi
+            sleep 5
+          done
+          if [[ "$PUBLISHED_INTEGRITY" != "$EXPECTED_INTEGRITY" ]]; then
+            echo "::error::$PACKAGE integrity does not match the tested release candidate"
+            exit 1
+          fi
+          export ATTESTATION_URL
+          node -e '
+            const assertShape = (ok, message) => { if (!ok) throw new Error(message); };
+            (async () => {
+              let document;
+              for (let attempt = 1; attempt <= 6; attempt++) {
+                try {
+                  const response = await fetch(process.env.ATTESTATION_URL);
+                  if (response.ok) {
+                    const parsed = await response.json();
+                    if (Array.isArray(parsed?.attestations)) { document = parsed; break; }
+                  }
+                } catch {
+                  // Bounded retry below; the final attempt still fails closed.
+                }
+                if (attempt < 6) await new Promise((resolve) => setTimeout(resolve, 5000));
+              }
+              assertShape(document, "SLSA provenance attestation was unavailable after 6 attempts");
+
+              const attestation = document.attestations.find(
+                (entry) => entry?.predicateType === "https://slsa.dev/provenance/v1",
+              );
+              assertShape(attestation, "SLSA provenance attestation is missing");
+              const payload = attestation?.bundle?.dsseEnvelope?.payload;
+              assertShape(typeof payload === "string", "provenance envelope has no payload");
+              const statement = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+
+              const expectedIntegrity = process.env.EXPECTED_INTEGRITY;
+              assertShape(expectedIntegrity?.startsWith("sha512-"), "tested tarball has no sha512 integrity");
+              const expectedDigest = Buffer.from(
+                expectedIntegrity.slice("sha512-".length), "base64",
+              ).toString("hex");
+
+              const subject = statement?.subject?.find(
+                (entry) => entry?.name === "pkg:npm/" + process.env.PACKAGE,
+              );
+              assertShape(
+                subject?.digest?.sha512 === expectedDigest,
+                "provenance subject does not match the tested tarball",
+              );
+
+              const build = statement?.predicate?.buildDefinition;
+              const workflow = build?.externalParameters?.workflow;
+              assertShape(
+                workflow?.repository === "https://github.com/baranovxyz/xlsx-stream-writer" &&
+                  workflow?.ref === "refs/heads/master" &&
+                  workflow?.path === ".github/workflows/publish.yml",
+                "provenance was produced by an unexpected workflow",
+              );
+
+              const commits = (build?.resolvedDependencies ?? []).map((entry) => entry?.digest?.gitCommit);
+              assertShape(
+                commits.includes(process.env.EXPECTED_SHA),
+                "provenance does not resolve to the release commit",
+              );
+              console.log("provenance verified for " + process.env.PACKAGE);
+            })().catch((error) => { console.error(error.message); process.exit(1); });
+          '
+
+  tag-and-release:
+    needs: [prepare, verify]
+    if: ${{ !inputs['dry-run'] }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Create the release tag and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          REMOTE_SHA=$(git ls-remote origin "refs/tags/$TAG^{}" | cut -f1)
+          if [[ -z "$REMOTE_SHA" ]]; then
+            REMOTE_SHA=$(git ls-remote origin "refs/tags/$TAG" | cut -f1)
+          fi
+          if [[ -n "$REMOTE_SHA" && "$REMOTE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "::error::Tag $TAG already points at $REMOTE_SHA, expected $GITHUB_SHA"
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+          PRERELEASE=()
+          if [[ "$TAG" == *-* ]]; then PRERELEASE+=(--prerelease); fi
+          gh release create "$TAG" \
+            --generate-notes \
+            --title "$TAG" \
+            --target "$GITHUB_SHA" \
+            "${PRERELEASE[@]}"
