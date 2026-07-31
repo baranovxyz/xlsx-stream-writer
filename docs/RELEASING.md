@@ -136,9 +136,12 @@ Undo with an empty message: `npm deprecate 'pkg@<x.y.z' ''`.
    - bump `version` in `package.json`
    - add a dated section to `CHANGELOG.md`
 2. `npm ci && npm test && npm audit --audit-level=low` — all clean.
-3. `npm pack --dry-run` — confirm the file list is `dist/`, `src/`, `README.md`,
-   `CHANGELOG.md`, `LICENSE`, `package.json` and nothing else. `src/` ships
-   because `dist/` carries source maps that point at it.
+3. `npm pack --dry-run` — confirm the file list is `dist/`, `src/`,
+   `docs/migrating-to-1.x.md`, `README.md`, `CHANGELOG.md`, `LICENSE`,
+   `package.json` and nothing else. `src/` ships because `dist/` carries source
+   maps that point at it. The migration guide ships so that a caller who is
+   upgrading can read it from `node_modules` — it is the one file under `docs/`
+   that does, and the rest of that directory must stay out.
 4. Open a PR, get CI green, merge to `master`.
 5. Dry run first:
    `gh workflow run publish.yml --repo baranovxyz/xlsx-stream-writer -f dry-run=true`
