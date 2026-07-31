@@ -20,9 +20,19 @@ to be true before it will work.
 
 ## One-time setup
 
-1. **Make the repository public.** npm refuses `--provenance` from a private
-   repository, so the publish job fails while the repo is private. This is
-   currently the only blocker — everything else is in place.
+1. **Decide on repository visibility.** The npm CLI's own guard is about the
+   *package*: it refuses `--provenance` unless the package is public or
+   `--access public` is passed, which this workflow does
+   (`libnpmpublish/lib/publish.js`: "Can't generate provenance for new or
+   private package, you must set `access` to public").
+
+   The repository is a separate question. `xlsx-stream-writer` is private on
+   GitHub today, and a provenance attestation publicly records the repository
+   URL, the workflow path and the release commit SHA in a transparency log. So
+   publishing with provenance from a private repo advertises that the repo
+   exists and which commit shipped. Make the repository public before the first
+   provenance-backed release, or drop `--provenance` from `publish.yml` and
+   accept an unattested release.
 
 2. **Configure the trusted publisher on npmjs.org.** Package
    `xlsx-stream-writer` → Settings → Trusted publisher → GitHub Actions:
@@ -70,9 +80,9 @@ to be true before it will work.
 
 - **`prepare` fails on the version guard.** The version is already on npm. Bump
   and start again; npm versions are immutable and must never be reused.
-- **`publish` fails with a provenance error.** The repository is private, or the
-  trusted publisher entry does not match the repo, workflow path and environment
-  exactly.
+- **`publish` fails with a provenance error.** Either `--access public` is
+  missing, or the trusted publisher entry does not match the repository,
+  workflow path and environment exactly.
 - **`publish` succeeded but `verify` failed.** The package is live — npm cannot
   be rolled back after 72 hours, and unpublishing a version burns it forever.
   Investigate before republishing; in most cases the fix is a new patch version,
@@ -94,9 +104,9 @@ Each phase is independently releasable, and each is a real user-visible step:
 Phase 4 (supply-chain hardening) landed early, alongside 0.2.7, so that every
 later phase publishes through the verified pipeline rather than by hand.
 
-All five are committed. Publishing any of them needs the two one-time setup
-steps above; until the repository is public, `npm publish --provenance` fails
-and nothing reaches the registry.
+All five are committed. Publishing any of them needs the one-time setup above:
+the trusted publisher entry on npmjs.org and the `npm` environment on GitHub.
+Neither exists yet, so no release has been published.
 
 If you would rather publish only the end state, release 1.1.0 and skip the
 intermediate versions — the changelog documents each step regardless. If you
