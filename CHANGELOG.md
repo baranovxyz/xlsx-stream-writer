@@ -4,6 +4,36 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.0 — 2026-07-31
+
+Found by a second adversarial review pass, plus documentation the earlier
+releases should have carried.
+
+### Changed
+
+- **Reading `sharedStringsXmlStream` before the worksheet now raises.** The
+  table is filled as the sheet is walked, so reading it early produced a part
+  declaring a count of zero and listing nothing — valid-looking and quietly
+  wrong. Draining `sheetXmlStream` first, which is the documented order, is
+  unaffected; so is building a workbook, since the archive writer consumes
+  entries in order.
+- `styleIdFunc` rejections name the type as well as the value. A boxed `Number`
+  or a numeric string prints like a perfectly good index, which made the bare
+  value baffling.
+
+### Documentation
+
+- The release runbook covers the 0.2 maintenance line: why a backport must be a
+  `0.2.z` rather than a `0.3.0`, what may and may not be backported, and how the
+  `legacy` dist-tag keeps a maintenance release from becoming the default
+  install.
+- The README's plans list no longer mixes finished work with notes from 2018.
+
+### Also on npm
+
+`0.2.7` ships the corruption fixes to the 0.2 line under the `legacy` dist-tag,
+for projects on `^0.2.6` that cannot take the 1.x requirements.
+
 ## 1.2.0 — 2026-07-31
 
 Found by an adversarial review pass over the preceding phases.

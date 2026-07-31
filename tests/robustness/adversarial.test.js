@@ -77,6 +77,34 @@ test("a style id that is not a usable index is rejected at the cell", async () =
   await assert.rejects(build(() => 2), /but only 2 styles are defined/);
 });
 
+test("the shared-string table refuses to be read before the sheet", async () => {
+  const xlsx = new XlsxStreamWriter();
+  xlsx.addRows([["a", "b"]]);
+
+  // The table fills as the sheet is walked. Emitting it early would declare a
+  // count of zero and list nothing — a part that looks valid and is not.
+  await assert.rejects(
+    getXmlFromXmlStream(xlsx.sharedStringsXmlStream),
+    /only complete once the worksheet has been read/,
+  );
+});
+
+test("draining the sheet first makes the table readable", async () => {
+  const xlsx = new XlsxStreamWriter();
+  xlsx.addRows([["a", "b"], ["a", "c"]]);
+  await getXmlFromXmlStream(xlsx.sheetXmlStream);
+
+  const sharedStrings = await getXmlFromXmlStream(xlsx.sharedStringsXmlStream);
+  assert.match(sharedStrings, /count="4" uniqueCount="3"/);
+});
+
+test("a style id that only looks numeric is reported with its type", async () => {
+  const xlsx = new XlsxStreamWriter({ styleIdFunc: () => new Number(0) });
+  xlsx.addRows([["a"]]);
+  // Bare, the value prints as "0" and the error reads like nonsense.
+  await assert.rejects(xlsx.getFile(), /\(object\) for cell A1/);
+});
+
 test("writers running concurrently do not see each other's state", async () => {
   const build = (fill, value) => {
     const xlsx = new XlsxStreamWriter({ styles: [{ fill }], styleIdFunc: () => 1 });
