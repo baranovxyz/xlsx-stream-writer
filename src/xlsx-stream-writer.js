@@ -1,15 +1,15 @@
-const PassThrough = require("stream-browserify").PassThrough;
-const Readable = require("stream-browserify").Readable;
-const JSZip = require("jszip");
 const xmlParts = require("./xml/parts");
 const xmlBlobs = require("./xml/blobs");
-const { getCellAddress, toRowsStream, escapeXml } = require("./helpers");
+const { getCellAddress, escapeXml } = require("./helpers");
+const { toAsyncIterable, toWebReadableStream } = require("./streams");
+const { writeZip } = require("./zip/writer");
 const getStyles = require("./styles").getStyles;
 
 const defaultOptions = {
   inlineStrings: false,
   styles: [],
   styleIdFunc: (value, columnId, rowId) => 0,
+  compressionLevel: 4,
 };
 
 // The grid Excel itself supports. Exceeding either limit produces a file Excel
@@ -21,6 +21,9 @@ const MAX_COLUMNS = 16384;
 // preserves Lotus 1-2-3's belief that 1900 was a leap year.
 const EXCEL_EPOCH_OFFSET_DAYS = 25569;
 const MS_PER_DAY = 86400000;
+
+const SHEET_PART = "xl/worksheets/sheet1.xml";
+const SHARED_STRINGS_PART = "xl/sharedStrings.xml";
 
 class XlsxStreamWriter {
   constructor(options) {
@@ -36,16 +39,12 @@ class XlsxStreamWriter {
       throw new TypeError("options.styleIdFunc must be a function");
     }
 
-    this.sheetXmlStream = null;
-    this.sharedStringsXmlStream = null;
     this.sharedStringsArr = [];
     this.sharedStringsMap = {};
-    this.sharedStringsHashMap = {};
 
+    this._rows = null;
     this._rowsAdded = false;
-    this._fileRequested = false;
-    this._error = null;
-    this._rejectFile = null;
+    this._consumed = false;
     this._sharedStringRefs = 0;
 
     this.xlsx = {
@@ -58,7 +57,7 @@ class XlsxStreamWriter {
   }
 
   /**
-   * Add rows to xlsx.
+   * Add rows to the workbook.
    * @param {Array | Readable | ReadableStream | Iterable | AsyncIterable} rowsOrStream
    *   array of arrays, a readable stream of arrays, or any iterable of arrays
    * @return {undefined}
@@ -69,68 +68,50 @@ class XlsxStreamWriter {
         "addRows() can only be called once per writer — the previous row stream would be discarded. Create a new XlsxStreamWriter for another workbook.",
       );
     }
-    const rowsStream = toRowsStream(rowsOrStream);
+    this._rows = toAsyncIterable(rowsOrStream, "Rows");
     this._rowsAdded = true;
+  }
 
-    const rowsToXml = this._getRowsToXmlTransformStream();
+  /** The worksheet part, as a web ReadableStream of XML text. */
+  get sheetXmlStream() {
+    if (!this._rowsAdded) return null;
+    if (!this._sheetStream) this._sheetStream = toWebReadableStream(this._sheetXml());
+    return this._sheetStream;
+  }
 
-    // .pipe() does not forward errors, so without this a failing source leaves
-    // the destination open forever and getFile() never settles.
-    rowsStream.on("error", error => this._fail(error));
-    rowsToXml.on("error", error => this._fail(error));
-
-    if (this.options.inlineStrings) {
-      const tsToString = this._getToStringTransformStream();
-      tsToString.on("error", error => this._fail(error));
-      this.sheetXmlStream = rowsStream.pipe(rowsToXml).pipe(tsToString);
-    } else {
-      this.sheetXmlStream = rowsStream.pipe(rowsToXml);
+  /**
+   * The shared-string table, as a web ReadableStream of XML text.
+   *
+   * Only read this once `sheetXmlStream` has been drained: the table is built
+   * as the sheet is walked, and this stream begins emitting — counts included —
+   * as soon as you touch it.
+   */
+  get sharedStringsXmlStream() {
+    if (!this._sharedStringsStream) {
+      this._sharedStringsStream = toWebReadableStream(this._sharedStringsXml());
     }
-
-    // Keep a failure before getFile() from crashing the process as an unhandled
-    // 'error' event; _fail() has already recorded it for the promise to reject.
-    this.sheetXmlStream.on("error", () => {});
-
-    this.sharedStringsXmlStream = this._getSharedStringsXmlStream();
+    return this._sharedStringsStream;
   }
 
-  _fail(error) {
-    if (this._error) return;
-    this._error = error;
-    if (this._rejectFile) this._rejectFile(error);
+  async *_sheetXml() {
+    yield xmlParts.sheetHeader;
+    let rowIndex = 0;
+    for await (const row of this._rows) {
+      yield this._getRowXml(row, rowIndex);
+      rowIndex++;
+    }
+    yield xmlParts.sheetFooter;
   }
 
-  _getToStringTransformStream() {
-    const ts = PassThrough();
-    ts._transform = (data, encoding, callback) => {
-      ts.push(data.toString(), "utf8");
-      callback();
-    };
-    return ts;
-  }
-
-  _getRowsToXmlTransformStream() {
-    const ts = PassThrough({ objectMode: true });
-    let c = 0;
-    ts._transform = (data, encoding, callback) => {
-      try {
-        if (c === 0) ts.push(xmlParts.sheetHeader, "utf8");
-        ts.push(this._getRowXml(data, c), "utf8");
-        c++;
-        callback();
-      } catch (error) {
-        callback(error);
-      }
-    };
-
-    ts._flush = cb => {
-      // An empty workbook still needs its header, or the sheet part is a bare
-      // closing tag and the whole file is malformed.
-      if (c === 0) ts.push(xmlParts.sheetHeader, "utf8");
-      ts.push(xmlParts.sheetFooter, "utf8");
-      cb();
-    };
-    return ts;
+  async *_sharedStringsXml() {
+    yield xmlParts.getSharedStringsHeader(
+      this.sharedStringsArr.length,
+      this._sharedStringRefs,
+    );
+    for (const value of this.sharedStringsArr) {
+      yield xmlParts.getSharedStringXml(escapeXml(String(value)));
+    }
+    yield xmlParts.sharedStringsFooter;
   }
 
   _getRowXml(row, rowIndex) {
@@ -212,78 +193,66 @@ class XlsxStreamWriter {
     return sharedStringIndex;
   }
 
-  _getSharedStringsXmlStream() {
-    const rs = Readable();
-    let c = 0;
-    rs._read = () => {
-      if (c === 0) {
-        rs.push(
-          xmlParts.getSharedStringsHeader(
-            this.sharedStringsArr.length,
-            this._sharedStringRefs,
-          ),
-        );
-      }
-      if (c === this.sharedStringsArr.length) {
-        rs.push(xmlParts.sharedStringsFooter);
-        rs.push(null);
-      } else
-        rs.push(
-          xmlParts.getSharedStringXml(escapeXml(String(this.sharedStringsArr[c]))),
-        );
-      c++;
-    };
-    return rs;
+  _entries() {
+    const entries = Object.keys(this.xlsx).map(name => ({
+      name,
+      source: this.xlsx[name],
+    }));
+    // Async generators, deliberately not the ReadableStream getters above: a
+    // ReadableStream starts pulling the moment it is constructed, which would
+    // emit the shared-string header — and its count — before the sheet had been
+    // walked. A generator does nothing until the zip writer reaches its entry,
+    // so the ordering the workbook depends on is a contract here rather than
+    // the accident it was under JSZip.
+    entries.push({ name: SHEET_PART, source: this._sheetXml() });
+    entries.push({ name: SHARED_STRINGS_PART, source: this._sharedStringsXml() });
+    return entries;
   }
 
-  _clearSharedStrings() {
-    this.sharedStringsMap = {};
-    this.sharedStringsArr = [];
-    this._sharedStringRefs = 0;
-  }
-
-  // returns blob in a browser, buffer in nodejs
-  getFile() {
-    if (!this._rowsAdded) {
-      throw new Error("call addRows() before getFile()");
-    }
-    if (this._fileRequested) {
+  _claim() {
+    if (!this._rowsAdded) throw new Error("call addRows() before building the workbook");
+    if (this._consumed) {
       throw new Error(
-        "getFile() can only be called once — the row stream has already been consumed",
+        "this writer has already produced a workbook — the row stream has been consumed",
       );
     }
-    this._fileRequested = true;
+    this._consumed = true;
+  }
 
-    this._clearSharedStrings();
-    const zip = new JSZip();
-    // add all static files
-    Object.keys(this.xlsx).forEach(key => zip.file(key, this.xlsx[key]));
+  /**
+   * The workbook as a stream of byte chunks, without ever holding the whole
+   * archive in memory.
+   * @returns {ReadableStream<Uint8Array>}
+   */
+  getStream() {
+    this._claim();
+    return toWebReadableStream(
+      writeZip(this._entries(), { level: this.options.compressionLevel }),
+    );
+  }
 
-    // add "xl/worksheets/sheet1.xml"
-    zip.file("xl/worksheets/sheet1.xml", this.sheetXmlStream);
-    // add "xl/sharedStrings.xml"
-    zip.file("xl/sharedStrings.xml", this.sharedStringsXmlStream);
+  /**
+   * The whole workbook at once: a Buffer in Node.js, a Blob in the browser.
+   * @returns {Promise<Buffer|Blob>}
+   */
+  async getFile() {
+    this._claim();
+    const chunks = [];
+    for await (const chunk of writeZip(this._entries(), {
+      level: this.options.compressionLevel,
+    })) {
+      chunks.push(chunk);
+    }
 
     const isBrowser =
       typeof window !== "undefined" &&
       {}.toString.call(window) === "[object Window]";
 
-    const generateOptions = {
-      type: isBrowser ? "blob" : "nodebuffer",
-      compression: "DEFLATE",
-      compressionOptions: { level: 4 },
-      streamFiles: true,
-    };
-    if (!isBrowser) generateOptions.platform = process.platform;
-
-    return new Promise((resolve, reject) => {
-      if (this._error) {
-        reject(this._error);
-        return;
-      }
-      this._rejectFile = reject;
-      zip.generateAsync(generateOptions).then(resolve, reject);
-    });
+    return isBrowser
+      ? new Blob(chunks, {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        })
+      : Buffer.concat(chunks);
   }
 }
 

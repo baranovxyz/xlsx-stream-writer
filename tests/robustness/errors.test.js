@@ -69,14 +69,15 @@ test("addRows() refuses to silently discard an earlier row stream", () => {
   assert.throws(() => xlsx.addRows(rows), /addRows\(\) can only be called once/);
 });
 
-test("getFile() refuses to run twice on a consumed stream", async () => {
+test("a writer refuses to produce a second workbook", async () => {
   const xlsx = new XlsxStreamWriter();
   xlsx.addRows(rows);
   await xlsx.getFile();
-  assert.throws(() => xlsx.getFile(), /getFile\(\) can only be called once/);
+  await assert.rejects(xlsx.getFile(), /already produced a workbook/);
+  assert.throws(() => xlsx.getStream(), /already produced a workbook/);
 });
 
-test("getFile() before addRows() says so", () => {
+test("getFile() before addRows() says so", async () => {
   const xlsx = new XlsxStreamWriter();
-  assert.throws(() => xlsx.getFile(), /call addRows\(\) before getFile\(\)/);
+  await assert.rejects(xlsx.getFile(), /call addRows\(\) before building the workbook/);
 });

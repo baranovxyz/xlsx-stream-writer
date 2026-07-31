@@ -34,16 +34,36 @@ test("every part is well-formed XML", async () => {
   }
 });
 
-test("parts are deflated and written in streaming mode", async () => {
+test("parts are deflated and marked as UTF-8", async () => {
   const zip = await archive;
   for (const name of FILE_ENTRY_NAMES) {
     const entry = zip.entry(name);
     assert.equal(entry.method, 8, `${name} should be DEFLATE`);
-    assert.ok(
-      entry.usesDataDescriptor,
-      `${name} should carry a data descriptor — sizes are not known until the stream ends`,
-    );
+    assert.ok(entry.utf8NameFlag, `${name} should flag its name as UTF-8`);
   }
+});
+
+test("a small workbook uses plain entries, not streamed ones", async () => {
+  const zip = await archive;
+  // Under the buffering limit the writer knows the exact sizes before it emits
+  // the header, so no entry needs a data descriptor or ZIP64 record. This is
+  // the most widely readable form, and it is what small workbooks should get.
+  for (const name of FILE_ENTRY_NAMES) {
+    const entry = zip.entry(name);
+    assert.equal(entry.usesDataDescriptor, false, `${name} should not need a data descriptor`);
+    assert.equal(entry.zip64, false, `${name} should not need ZIP64`);
+    assert.ok(entry.uncompressedSize > 0, `${name} should record its real size`);
+  }
+});
+
+test("the same rows always produce the same bytes", async () => {
+  const build = async () => {
+    const xlsx = new XlsxStreamWriter();
+    xlsx.addRows(rows);
+    return xlsx.getFile();
+  };
+  // Timestamps are fixed rather than "now", so archives are reproducible.
+  assert.deepEqual(await build(), await build());
 });
 
 // readZip verifies every stored CRC and uncompressed length while parsing, so a

@@ -3,15 +3,14 @@
 Create `.xlsx` files in streaming mode, in the browser and in Node.js.
 
 Built for one job: writing very large spreadsheets with simple formatting,
-without holding all the rows in memory. Generating a workbook of 150 000 rows ×
-80 columns in a browser takes roughly 60 seconds.
+without holding all the rows in memory.
+
+**No dependencies.** The ZIP container is written by this package, compressing
+through `node:zlib` on the server and `CompressionStream` in the browser.
 
 Rewritten from the CoffeeScript
 [node-xlsx-writer](https://github.com/rubenv/node-xlsx-writer) and changed to run
 in both environments. The API is completely different from that implementation.
-
-It uses JSZip to compress the result. JSZip can consume readable streams, so
-rows are streamed straight into the `.xlsx` (which is a zip archive).
 
 ## Install
 
@@ -19,7 +18,9 @@ rows are streamed straight into the `.xlsx` (which is a zip archive).
 npm install xlsx-stream-writer
 ```
 
-Requires Node.js 20.19 or newer.
+Requires Node.js 20.19 or newer. In the browser it needs `CompressionStream`
+(Chrome 80+, Firefox 113+, Safari 16.4+) and a bundler that honours the
+`browser` field, which is all of them.
 
 ## Rows from an array
 
@@ -71,6 +72,32 @@ xlsx.getFile().then(buffer => {
 
 If the source fails part-way through, `getFile()` rejects with that error.
 
+## Streaming the workbook out
+
+`getFile()` builds the whole archive in memory. For workbooks too large for
+that, `getStream()` returns a `ReadableStream` of the archive bytes, so rows go
+in while bytes come out:
+
+```javascript
+const { Readable } = require("node:stream");
+const { pipeline } = require("node:stream/promises");
+const fs = require("node:fs");
+
+const xlsx = new XlsxStreamWriter();
+xlsx.addRows(generateRows());
+
+await pipeline(
+  Readable.fromWeb(xlsx.getStream()),
+  fs.createWriteStream("large.xlsx"),
+);
+```
+
+Writing 500 000 rows × 4 columns this way produces a 12 MB file — 80 MB of
+worksheet XML — in about 30 seconds, with peak memory around 240 MB. Most of
+that is the shared-string table; with `inlineStrings: true` the same export peaks
+near 120 MB and takes half the time, at the cost of a slightly larger file. If
+your strings are mostly distinct, prefer inline strings.
+
 ## Cell values
 
 | Value                        | Written as                                        |
@@ -104,6 +131,9 @@ const xlsx = new XlsxStreamWriter({
 
   // Choose a style per cell.
   styleIdFunc: (value, columnIndex, rowIndex) => (rowIndex === 0 ? 1 : 0),
+
+  // Deflate level, 0-9. Node only; browsers expose no level control.
+  compressionLevel: 4,
 });
 ```
 
@@ -112,15 +142,19 @@ string like `0.00` or `dd.mm.yyyy`.
 
 ## Lifecycle
 
-A writer builds one workbook: call `addRows` once, then `getFile` once. Both
-raise if called again, because the row stream has already been consumed. Create
-a new `XlsxStreamWriter` for the next workbook.
+A writer builds one workbook: call `addRows` once, then `getFile` or `getStream`
+once. Calling either again raises, because the row stream has been consumed.
+Create a new `XlsxStreamWriter` for the next workbook.
+
+Archives are reproducible — entry timestamps are fixed rather than "now", so the
+same rows always produce the same bytes.
 
 ## Plans
 
 - [ ] improve api
 - [x] add tests
-- [ ] replace JSZip with a built-in zip writer, so the package has no runtime dependencies
+- [x] replace JSZip with a built-in zip writer, so the package has no runtime dependencies
+- [ ] ship TypeScript sources and type declarations
 - [ ] make browser build, put on some cdn
 - [ ] optimize shared string stuff
 - [ ] maybe use web workers to build xlsx in browser

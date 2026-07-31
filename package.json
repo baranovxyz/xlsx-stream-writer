@@ -1,8 +1,15 @@
 {
   "name": "xlsx-stream-writer",
-  "version": "0.3.0",
-  "description": "Create xlsx in streaming mode in browser and nodejs",
+  "version": "1.0.0",
+  "description": "Create xlsx in streaming mode in browser and nodejs, with no dependencies",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "browser": {
+    "./src/zip/deflate.node.js": "./src/zip/deflate.browser.js"
+  },
   "files": [
     "index.js",
     "src",
@@ -20,9 +27,9 @@
   },
   "author": "Valery Baranov <valery@baranov.xyz> (http://baranov.xyz)",
   "license": "MIT",
-  "dependencies": {
-    "jszip": "^3.10.1",
-    "stream-browserify": "^3.0.0"
+  "dependencies": {},
+  "devDependencies": {
+    "jszip": "^3.10.1"
   },
   "repository": {
     "type": "git",
@@ -36,6 +43,9 @@
     "excel",
     "xlsx",
     "stream",
-    "write"
+    "write",
+    "streaming",
+    "spreadsheet",
+    "zero-dependency"
   ]
 }

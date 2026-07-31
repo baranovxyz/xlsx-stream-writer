@@ -4,6 +4,54 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.0 — 2026-07-31
+
+**The package now has no runtime dependencies.** `jszip` and
+`stream-browserify` are gone, and with them the 15 packages they resolved to.
+The ZIP container is written here, compressing through `node:zlib` on the server
+and `CompressionStream` in the browser, selected by the `browser` field.
+
+The 1.0.0 marks a supported API, not a rewrite of the interface: `addRows` and
+`getFile` behave as before.
+
+### Added
+
+- `getStream()` returns the archive as a `ReadableStream` of bytes, so a
+  workbook larger than memory can be piped straight to disk or to a response.
+  `getFile()` buffers the whole archive, which capped the size the package could
+  produce at available memory — the one thing a "stream writer" should not do.
+- ZIP64 records on parts that need them. Above 4 GiB the previous output was
+  silently corrupt; a 500 000-row export already produces 80 MB of worksheet XML,
+  so the ceiling was reachable.
+- `compressionLevel` option, 0-9. Node only; browsers expose no level control.
+- Archives are reproducible: entry timestamps are fixed rather than "now", so
+  the same rows always produce the same bytes.
+
+### Changed
+
+- **Breaking.** `sheetXmlStream` and `sharedStringsXmlStream` are now web
+  `ReadableStream`s rather than `stream-browserify` readables. `addRows` accepts
+  the same range of inputs as before, native Node streams included.
+- **Breaking.** `getFile()` and `getStream()` reject rather than throw when
+  called before `addRows()` or a second time.
+- **Breaking.** `helpers.wrapRowsInStream` and `helpers.toRowsStream` are gone;
+  `addRows` accepts arrays, streams and iterables directly.
+- The archive no longer contains directory entries. They are optional in ZIP and
+  absent from the workbooks Excel itself writes; JSZip's habit of emitting them
+  was the only reason they were there.
+- Small workbooks now use plain ZIP entries with exact sizes in the local
+  header, instead of the data descriptors JSZip emitted for everything. Only
+  parts above 8 MiB — where the final size cannot be known in advance — use the
+  streamed form.
+- Shared strings are now generated after the sheet by contract rather than by
+  accident. The previous ordering depended on JSZip consuming entries in
+  insertion order, an undocumented detail of a third-party library.
+
+### Verification
+
+Output is checked against three readers with no shared lineage with the writer:
+the test suite's own central-directory parser, JSZip, and the system `unzip`.
+
 ## 0.3.0 — 2026-07-31
 
 Correctness and robustness. No dependency changes. Output for the documented

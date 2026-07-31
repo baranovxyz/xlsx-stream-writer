@@ -21,9 +21,16 @@ test("accepts a native node:stream Readable", async () => {
   assert.equal(await sheetXmlFrom(Readable.from(rows, { objectMode: true })), expected);
 });
 
-test("accepts a stream-browserify Readable", async () => {
-  const { wrapRowsInStream } = require("../../src/helpers");
-  assert.equal(await sheetXmlFrom(wrapRowsInStream(rows)), expected);
+test("accepts an old-style Node readable with no async iterator", async () => {
+  // Streams from older libraries predate Symbol.asyncIterator; they still have
+  // to work, so they are bridged through their data/end/error events.
+  const stream = new Readable({ objectMode: true, read() {} });
+  delete stream[Symbol.asyncIterator];
+  queueMicrotask(() => {
+    for (const row of rows) stream.push(row);
+    stream.push(null);
+  });
+  assert.equal(await sheetXmlFrom(stream), expected);
 });
 
 test("accepts a web ReadableStream", async () => {
