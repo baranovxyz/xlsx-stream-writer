@@ -74,6 +74,21 @@ list or starting a pass of your own.
   week, same comment shape, opposite behaviour. Check the comment against the SHA
   when reviewing the bump; that is the only step that works either way.
 
+- **`@types/node` tracks `engines.node`, not the newest release.** They are
+  pinned to the same major on purpose: the types are what stop a Node API newer
+  than the supported floor from compiling. On `^20` — the floor — `node:sqlite`
+  and `fs.promises.glob` are compile errors. On `^24` they compile clean and
+  crash on Node 20.19, and only a test that happens to exercise that line on the
+  oldest matrix entry would catch it. Raising the floor comes first; the types
+  follow. Dependabot is configured not to propose the major, because the bump
+  looks routine and removes a guarantee.
+
+- **TypeScript majors are a compatibility decision here, not a bump.**
+  `tests/types/tsconfig.json` sets `moduleResolution: node10` deliberately, to
+  prove the published declarations still resolve for a consumer on a classic
+  tsconfig. TypeScript 7 removed that option, so taking it means giving up that
+  assertion. Decide that on its merits, not because a pull request was green.
+
 - **No literal control characters in source files.** Write `\uXXXX` escapes, even
   inside test fixtures. Literal ones make tools treat the file as binary.
 
