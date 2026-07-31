@@ -106,6 +106,19 @@ about the output.
 tolerant than Excel in places. Before relying on a release, open a generated
 workbook in real Excel once.
 
+How tolerant, measured rather than assumed: given a shared-string reference that
+is not a number — the shape 0.2.6 wrote for a cell holding `constructor` —
+LibreOffice 24.2.7.2 does not refuse the file and does not prompt for repair. It
+coerces the reference to index 0 and prints the first string in the table.
+Surrounding cells keep their correct indices, so nothing looks disturbed.
+
+That is the failure mode this proxy is worst at catching: the CSV comes back
+with a *plausible wrong value* rather than an error, and a cell-by-cell
+comparison only catches it because the expected value is known. A corruption
+that happened to substitute the value a test also expected would pass. Green
+here means "LibreOffice read it and agreed with us", never "the file is
+well-formed" — the readers above are what establish that.
+
 Nothing here covers styling beyond what the examples exercise, and the CSV proxy
 flattens formatting by design — a value that reads back correctly says nothing
 about how it is displayed.

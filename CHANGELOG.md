@@ -248,9 +248,15 @@ the entry announced went the same way — the published 0.2.7 declares none.
 ### Security
 
 - Cleared all 59 known advisories (11 critical, 19 high) reported by
-  `npm audit` against the 0.2.6 dependency tree.
-- `jszip` moved from `^3.1.5` to `^3.10.1`, picking up fixes for the
-  prototype-pollution and path-traversal advisories affecting the pinned 3.1.5.
+  `npm audit` against this repository's checkout of 0.2.6. Almost all of them
+  came in through `jest@25`, and the lockfile is what pinned them. **Installing
+  0.2.6 never exposed a caller to those advisories**: `^3.1.5` floats, so a
+  fresh install resolves the fixed `jszip`, and npm ignores a dependency's
+  lockfile. Nothing below 0.2.7 is deprecated for a security reason — see
+  `SECURITY.md`.
+- `jszip` moved from `^3.1.5` to `^3.10.1`, so the range no longer *reaches*
+  the prototype-pollution and path-traversal advisories against 3.1.5, and the
+  lockfile stops pinning a version that has them.
 - `stream-browserify` moved from `^2.0.2` to `^3.0.0`.
 - Removed `jest@25` and the unused `crc` devDependency, taking the development
   dependency tree from 576 packages to zero. Tests now run on the built-in

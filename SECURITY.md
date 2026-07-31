@@ -8,7 +8,19 @@ maintainer; there are no backport branches.
 | Version | Supported |
 | ------- | --------- |
 | 0.2.7+  | yes       |
-| < 0.2.7 | no — depends on `jszip@3.1.5`, which carries known advisories |
+| < 0.2.7 | no — deprecated on npm; silently writes wrong cell values |
+
+Everything below 0.2.7 is deprecated, but **not for a security reason**, and the
+distinction is worth keeping straight. Those versions look up shared strings in
+a plain object, so a cell holding `constructor` or `__proto__` finds an
+inherited member instead of missing and writes a reference that is not an index.
+The cell then reads back as a different string, or the workbook fails to open.
+
+That is a data-correctness bug. It pollutes nothing — the assignment is single
+level, and `__proto__ = <number>` is ignored — injects nothing, and crosses no
+trust boundary. Nor did installing those versions expose a caller to a
+vulnerable dependency: the `jszip` range floats, so a fresh install resolves the
+fixed version regardless of what the shipped lockfile pinned.
 
 ## Reporting a vulnerability
 
